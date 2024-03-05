@@ -1,27 +1,31 @@
-trace_quantifiers: FORALL TRACE_VAR DOT trace_quantifiers
-    | EXISTS TRACE_VAR DOT trace_quantifiers
+?trace_quantifiers: trace_quantifiers_head trace_quantifiers
     | ltl_formula
 
-ltl_formula: FORALL PROCESS_VAR DOT ltl_formula
-    | FORALL PROCESS_VAR_SET DOT ltl_formula
-    | EXISTS PROCESS_VAR DOT ltl_formula
-    | EXISTS PROCESS_VAR_SET DOT ltl_formula
-    | ALWAYS ltl_formula
-    | EVENTUALLY ltl_formula 
-    | ltl_formula WEAK_UNTIL ltl_formula
-    | NEXT ltl_formula
-    | ltl_formula OR ltl_formula
-    | ltl_formula AND ltl_formula
-    | NEG ltl_formula
-    | LEFT_PAR ltl_formula RIGHT_PAR
+?trace_quantifiers_head: FORALL TRACE_VAR DOT 
+    | EXISTS TRACE_VAR DOT
+
+?ltl_formula: process_quantifiers_head ltl_formula
+    | ALWAYS ltl_formula                            -> ltl_operator
+    | EVENTUALLY ltl_formula                        -> ltl_operator
+    | ltl_formula WEAK_UNTIL ltl_formula            -> ltl_operator
+    | NEXT ltl_formula                              -> ltl_operator
+    | ltl_formula OR ltl_formula                    -> boolean_operator
+    | ltl_formula AND ltl_formula                   -> boolean_operator
+    | NEG ltl_formula                               -> boolean_operator
+    | LEFT_PAR ltl_formula RIGHT_PAR                -> parentheses
     | atom
 
-atom: PROCESS_VAR IN PROCESS_VAR_SET
+?process_quantifiers_head: FORALL PROCESS_VAR DOT
+    | FORALL PROCESS_VAR_SET DOT
+    | EXISTS PROCESS_VAR DOT 
+    | EXISTS PROCESS_VAR_SET
+
+?atom: PROCESS_VAR IN PROCESS_VAR_SET
     | PROCESS_VAR_SET SUBSETEQ PROCESS_VAR_SET
     | PROCESS_VAR EQUAL SUCC LEFT_PAR PROCESS_VAR RIGHT_PAR
     | parameterized_atomic_proposition
 
-parameterized_atomic_proposition: ATOMIC_PROPOSITION "_" TRACE_VAR "[" PROCESS_VAR "]"
+?parameterized_atomic_proposition: ATOMIC_PROPOSITION "_" TRACE_VAR "[" PROCESS_VAR "]"
 
 FORALL: "forall"
 EXISTS: "exists"

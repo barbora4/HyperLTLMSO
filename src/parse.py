@@ -1,5 +1,34 @@
-from lark import Lark
+from lark import Lark, Transformer
 import argparse
+
+class TreeToJson(Transformer):
+    # remove trace_quantifiers from tree
+    def trace_quantifiers(self, s):
+        if type(s) == list and len(s) == 1:
+            return s[0]
+        else:
+            return s
+
+    # remove ltl_formula from tree
+    def ltl_formula(self, s):
+        if type(s) == list and len(s) == 1:
+            return s[0]
+        else:
+            return s
+    
+    # remove atom from tree
+    def atom(self, s):
+        if type(s) == list and len(s) == 1:
+            return s[0]
+        else: 
+            return s
+    
+    # remove parameterized_atomic_proposition from tree
+    def parameterized_atomic_proposition(self, s):
+        if type(s) == list and len(s) == 1:
+            return s[0]
+        else:
+            return s
 
 def create_parser(grammar_file_path):
     # HyperLTL(MSO) grammar
