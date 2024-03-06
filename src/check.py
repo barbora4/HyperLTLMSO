@@ -9,7 +9,5 @@ if __name__ == "__main__":
 
     # parse formula into tree
     tree = grammar_parser.parse(input_formula)
-    print(tree.pretty())
-
     formula = Formula(tree)
     formula.print_original_formula()
