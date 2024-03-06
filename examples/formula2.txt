@@ -1,1 +1,1 @@
-forall t1. forall I. forall j. !(a_t1[i] W F a_t2[j]) | a_t3[j]
+forall t1. G (forall i. a_t1[i])

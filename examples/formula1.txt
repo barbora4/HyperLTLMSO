@@ -1,1 +1,1 @@
-forall t1. exists t2. forall t3. forall i. F a_t1[i]
+forall t1. forall i. F G a_t1[i]
