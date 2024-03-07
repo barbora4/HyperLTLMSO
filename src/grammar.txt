@@ -12,6 +12,8 @@
     | ltl_formula OR ltl_formula                    -> boolean_operator
     | ltl_formula AND ltl_formula                   -> boolean_operator
     | NEG ltl_formula                               -> boolean_operator
+    | ltl_formula IMPLIES ltl_formula               -> boolean_operator
+    | ltl_formula IFF ltl_formula                   -> boolean_operator
     | LEFT_PAR ltl_formula RIGHT_PAR                -> parentheses
     | atom
 

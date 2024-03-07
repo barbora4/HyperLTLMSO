@@ -125,10 +125,11 @@ class TreeConvertor(lark.visitors.Interpreter):
 
     def boolean_operator(self, tree):
         if len(tree.children) == 2:
+            # negation
             self.create_node(NodeType.BOOLEAN_OPERATOR, tree.children[0], 1)
             self.visit(tree.children[1])
         else:
-            # and, or
+            # and, or, implication, iff
             self.create_node(NodeType.BOOLEAN_OPERATOR, tree.children[1], 2)
             self.visit(tree.children[0])
             self.visit(tree.children[2])
