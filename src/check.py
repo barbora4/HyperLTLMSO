@@ -10,4 +10,6 @@ if __name__ == "__main__":
     # parse formula into tree
     tree = grammar_parser.parse(input_formula)
     formula = Formula(tree)
+
+    # print formula parsed into Buchi Normal Form
     formula.print_formula()

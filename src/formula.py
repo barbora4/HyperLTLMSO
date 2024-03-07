@@ -1,4 +1,3 @@
-import pprint
 import parse
 import lark
 from enum import Enum
@@ -10,6 +9,22 @@ class NodeType(Enum):
     BOOLEAN_OPERATOR = 4
     ATOMIC_FORMULA = 5
     CONFIGURATION_VARIABLE = 6
+
+class TreeOperators(Enum):
+    IN = "in"
+    EQUALS = "="
+    FORALL = "forall"
+    EXISTS = "exists"
+    DOT = "."
+    IFF = "<->"
+    AND = "&"
+    OR = "|"
+    IMPLIES = "->"
+    NEG = "!"
+    EVENTUALLY = "F"
+    ALWAYS = "G"
+    NEXT = "X"
+    WEAK_UNTIL = "W"
 
 class Node:
     def __init__(self, type, data, capacity):
@@ -65,10 +80,12 @@ class Formula:
     def print_formula(self):
         print("MSO formula: ")
         print_tree(self.bnf.mso_formula)
-        print("\nLocal constraints: ")
+        print("\n--------------------\n")
+        print("Local constraints: ")
         for constraint in self.bnf.local_constraints:
             print_tree(constraint)
-        print("\nEventuality constraints: ")
+        print("\n--------------------\n")
+        print("Eventuality constraints: ")
         for constraint in self.bnf.eventuality_constraints:
             print_tree(constraint)
 
@@ -183,9 +200,9 @@ class BnfFormula:
 
         # process the current node
         if node.type == NodeType.ATOMIC_FORMULA:
-            if node.data[1] == "in":
+            if node.data[1] == TreeOperators.IN.value:
                 node.free_fo_variables.add(node.data[0])
-            elif node.data[1] == "=":
+            elif node.data[1] == TreeOperators.EQUALS.value:
                 node.free_fo_variables.add(node.data[0])
                 node.free_fo_variables.add(node.data[4])
 
@@ -206,56 +223,56 @@ class BnfFormula:
                 raise ValueError("More than one free variable in LTL subformula")
 
             # create new configuration variable(s)
-            new_variable = self.create_new_variable(free_variable, is_eventually=(node.data == "F"))
+            new_variable = self.create_new_variable(free_variable, is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
 
             # create local constraints
-            if node.data in ["G", "F"]: # always/eventually
-                root = Node(NodeType.PROCESS_QUANTIFIER, ["forall", free_variable, "."], 1)
-                root.create_left_child(NodeType.BOOLEAN_OPERATOR, "<->", 2)
+            if node.data in [TreeOperators.ALWAYS.value, TreeOperators.EVENTUALLY.value]: 
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
+                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
                 root.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, "&" if node.data == "G" else "|", 2)
-                root.left.right.create_right_child(NodeType.LTL_OPERATOR, "X", 1)
+                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND if node.data == TreeOperators.ALWAYS.value else TreeOperators.OR, 2)
+                root.left.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
                 # place original subtree here
                 root.left.right.left = node.left.copy()
                 self.local_constraints.append(root)
             
-            elif node.data == "W": # weak until
-                root = Node(NodeType.PROCESS_QUANTIFIER, ["forall", free_variable, "."], 1)
-                root.create_left_child(NodeType.BOOLEAN_OPERATOR, "<->", 2)
+            elif node.data == TreeOperators.WEAK_UNTIL.value:
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.WEAK_UNTIL, free_variable, TreeOperators.DOT], 1)
+                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
                 root.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, "|", 2)
+                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.DOT, 2)
                 root.left.right.left = node.right.copy()
-                root.left.right.create_right_child(NodeType.BOOLEAN_OPERATOR, "&", 2)
+                root.left.right.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND, 2)
                 root.left.right.right.left = node.left.copy()
-                root.left.right.right.create_right_child(NodeType.LTL_OPERATOR, "X", 1)
+                root.left.right.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
 
             # eventuality variables
-            if node.data == "F":
+            if node.data ==  TreeOperators.EVENTUALLY.value:
                 y_variable = new_variable.replace("x", "y")
 
                 # create local constraints for eventuality variables
-                root = Node(NodeType.PROCESS_QUANTIFIER, ["forall", free_variable, "."], 1)
-                root.create_left_child(NodeType.BOOLEAN_OPERATOR, "->", 2)
-                root.left.create_left_child(NodeType.BOOLEAN_OPERATOR, "&", 2)
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
+                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IMPLIES, 2)
+                root.left.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND, 2)
                 root.left.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
-                root.left.left.create_right_child(NodeType.BOOLEAN_OPERATOR, "!", 1)
-                root.left.left.right.create_left_child(NodeType.LTL_OPERATOR, "X", 1)
+                root.left.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.NEG, 1)
+                root.left.left.right.create_left_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.left.right.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
                 # place original subtree here
                 root.left.right = node.left.copy()
                 self.local_constraints.append(root)
 
                 # create eventuality constraints
-                root = Node(NodeType.PROCESS_QUANTIFIER, ["forall", free_variable, "."], 1)
-                root.create_left_child(NodeType.BOOLEAN_OPERATOR, "&", 2)
-                root.left.create_left_child(NodeType.BOOLEAN_OPERATOR, "!", 1)
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
+                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND, 2)
+                root.left.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.NEG, 1)
                 root.left.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, "<->", 2)
-                root.left.right.create_left_child(NodeType.LTL_OPERATOR, "X", 1)
+                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IMPLIES, 2)
+                root.left.right.create_left_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
-                root.left.right.create_right_child(NodeType.LTL_OPERATOR, "X", 1)
+                root.left.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
                 self.eventuality_constraints.append(root)
                 
