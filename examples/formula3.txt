@@ -1,1 +1,1 @@
-i in I -> j in J
+forall t1. i in I & j in J

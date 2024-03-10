@@ -1,6 +1,8 @@
 import parse
 import lark
 from enum import Enum
+import automata
+import mso
 
 class NodeType(Enum):
     PROCESS_QUANTIFIER = 1
@@ -12,6 +14,8 @@ class NodeType(Enum):
 
 class TreeOperators(Enum):
     IN = "in"
+    SUBSETEQ = "subseteq"
+    SUCC = "succ"
     EQUALS = "="
     FORALL = "forall"
     EXISTS = "exists"
@@ -27,7 +31,7 @@ class TreeOperators(Enum):
     WEAK_UNTIL = "W"
 
 class Node:
-    def __init__(self, type, data, capacity):
+    def __init__(self, type: NodeType, data, capacity: int):
         self.type = type
         self.data = data
         self.capacity = capacity # max number of children
@@ -50,19 +54,22 @@ class Node:
         new_node.free_fo_variables = self.free_fo_variables
         return new_node
     
-    def create_left_child(self, type, data, capacity):
+    def create_left_child(self, type: NodeType, data, capacity: int):
         new_node = Node(type, data, capacity)
         self.left = new_node
         self.children += 1
         new_node.parent = self
 
-    def create_right_child(self, type, data, capacity):
+    def create_right_child(self, type: NodeType, data, capacity: int):
         new_node = Node(type, data, capacity)
         self.right = new_node
         self.children += 1
         new_node.parent = self
 
-def print_tree(root, tabs = 0):
+    def is_atomic_formula(self):
+        return self.children == 0
+
+def print_tree(root: Node, tabs = 0):
     print("\t" * tabs + str(root.data))
     if (root.left != None):
         print_tree(root.left, tabs+1)
@@ -77,6 +84,10 @@ class Formula:
         self.bnf = BnfFormula()
         self.bnf.translate_formula_into_bnf(self.original_formula.root) 
 
+        self.mso_converter = mso.MSOFormula()
+        self.mso_initial_automaton = None 
+        self.symbol_map = None
+
     def print_formula(self):
         print("MSO formula: ")
         print_tree(self.bnf.mso_formula)
@@ -88,13 +99,47 @@ class Formula:
         print("Eventuality constraints: ")
         for constraint in self.bnf.eventuality_constraints:
             print_tree(constraint)
+        print("\n--------------------\n")
+
+    def print_mso_initial_automaton(self):
+        automata.plot_automaton(self.mso_initial_automaton)
+
+    def make_initial_automaton(self):
+        self.mso_initial_automaton, _ = self.convert_formula_to_automaton(self.bnf.mso_formula)
+
+    def convert_formula_to_automaton(self, formula: Node):
+        #TODO automata operations
+        #TODO symbol maps!
+        print_tree(formula)
+
+        # return mso automaton for atomic formulae
+        automaton = None
+        if formula.is_atomic_formula():
+            # i in I
+            if len(formula.data) == 3 and formula.data[1] == TreeOperators.IN.value:
+                automaton, _ = self.mso_converter.process_in_process_set(formula.data[0], formula.data[2])
+            # I subseteq J
+            elif len(formula.data) == 3 and formula.data[1] == TreeOperators.SUBSETEQ.value:
+                automaton, _ = self.mso_converter.process_set_subseteq_process_set(formula.data[0], formula.data[2])
+            # j = succ(i)
+            elif len(formula.data) == 6 and formula.data[2] == TreeOperators.SUCC.value:
+                automaton, _ = self.mso_converter.process_successor(formula.data[4], formula.data[0])
+
+        elif formula.data == TreeOperators.AND:
+            # automata union
+            print("union")
+            aut1, _ = self.convert_formula_to_automaton(formula.left)
+            aut2, _ = self.convert_formula_to_automaton(formula.right)
+            automaton = automata.union(aut1, aut2)
+
+        return automaton, _
 
 class TreeConvertor(lark.visitors.Interpreter):
     def __init__(self):
         self.root = None
         self.current = None
 
-    def create_node(self, type, data, capacity):
+    def create_node(self, type: NodeType, data, capacity: int):
         new_node = Node(type, data, capacity)
         if self.root == None:
             self.root = new_node
@@ -107,7 +152,7 @@ class TreeConvertor(lark.visitors.Interpreter):
                 self.current.right = new_node
         self.current = new_node
 
-    def go_back_to_unprocessed(self, node):
+    def go_back_to_unprocessed(self, node: Node):
         tmp_node = node.copy()
         while tmp_node.parent != None and tmp_node.children == tmp_node.capacity:
             tmp_node = tmp_node.parent
@@ -143,11 +188,11 @@ class TreeConvertor(lark.visitors.Interpreter):
     def boolean_operator(self, tree):
         if len(tree.children) == 2:
             # negation
-            self.create_node(NodeType.BOOLEAN_OPERATOR, tree.children[0], 1)
+            self.create_node(NodeType.BOOLEAN_OPERATOR, TreeOperators.NEG, 1)
             self.visit(tree.children[1])
         else:
             # and, or, implication, iff
-            self.create_node(NodeType.BOOLEAN_OPERATOR, tree.children[1], 2)
+            self.create_node(NodeType.BOOLEAN_OPERATOR, TreeOperators(tree.children[1]), 2)
             self.visit(tree.children[0])
             self.visit(tree.children[2])
 
