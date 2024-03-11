@@ -123,7 +123,7 @@ class Formula:
             elif len(formula.data) == 6 and formula.data[2] == TreeOperators.SUCC.value:
                 automaton = self.mso_converter.process_successor(formula.data[4], formula.data[0])
 
-        elif formula.data == TreeOperators.AND:
+        elif formula.data in [TreeOperators.AND, TreeOperators.OR]:
             # convert both subtrees to an automaton
             aut1 = self.convert_formula_to_automaton(formula.left)
             aut2 = self.convert_formula_to_automaton(formula.right)
@@ -133,22 +133,30 @@ class Formula:
             aut1 = automata.extend_alphabet(aut1, symbol_map)
             aut2 = automata.extend_alphabet(aut2, symbol_map)
 
-            # automata union
-            automaton = automata.Automaton(
-                automata.union(aut1, aut2),
-                aut1.alphabet,
-                symbol_map
-            )
+            if formula.data == TreeOperators.OR:
+                # automata union
+                automaton = automata.Automaton(
+                    automata.union(aut1, aut2),
+                    aut1.alphabet,
+                    symbol_map
+                )
 
-            # first-order variables must be singletons
-            for index, symbol in enumerate(symbol_map):
-                if symbol.islower():
-                    sing = self.mso_converter.singleton(automaton, index)
-                    # intersection with result
-                    automaton.automaton = automata.intersection(
-                        automaton,
-                        sing
-                    )
+                # first-order variables must be singletons
+                for index, symbol in enumerate(symbol_map):
+                    if symbol.islower():
+                        sing = self.mso_converter.singleton(automaton, index)
+                        # intersection with result
+                        automaton.automaton = automata.intersection(
+                            automaton,
+                            sing
+                        )
+            elif formula.data == TreeOperators.AND:
+                # automata intersection
+                automaton = automata.Automaton(
+                    automata.intersection(aut1, aut2),
+                    aut1.alphabet,
+                    symbol_map
+                )
 
         return automaton
 
