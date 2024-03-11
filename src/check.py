@@ -22,14 +22,6 @@ if __name__ == "__main__":
     # load initial configuration of a system (.mata)
     initial_configurations = automata.get_initial_configurations(args["initial_config"])
 
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet()
-
     # create automaton for initial mso formula
     formula.make_initial_automaton()
     formula.print_mso_initial_automaton()
-
-    # test
-    #mso = mso.MSOFormula()
-    #aut, symbol_map = mso.process_successor("i", "j")
-    #automata.plot_automaton(aut)

@@ -86,7 +86,6 @@ class Formula:
 
         self.mso_converter = mso.MSOFormula()
         self.mso_initial_automaton = None 
-        self.symbol_map = None
 
     def print_formula(self):
         print("MSO formula: ")
@@ -105,34 +104,53 @@ class Formula:
         automata.plot_automaton(self.mso_initial_automaton)
 
     def make_initial_automaton(self):
-        self.mso_initial_automaton, _ = self.convert_formula_to_automaton(self.bnf.mso_formula)
+        self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
 
     def convert_formula_to_automaton(self, formula: Node):
         #TODO automata operations
         #TODO symbol maps!
-        print_tree(formula)
 
         # return mso automaton for atomic formulae
         automaton = None
         if formula.is_atomic_formula():
             # i in I
             if len(formula.data) == 3 and formula.data[1] == TreeOperators.IN.value:
-                automaton, _ = self.mso_converter.process_in_process_set(formula.data[0], formula.data[2])
+                automaton = self.mso_converter.process_in_process_set(formula.data[0], formula.data[2])
             # I subseteq J
             elif len(formula.data) == 3 and formula.data[1] == TreeOperators.SUBSETEQ.value:
-                automaton, _ = self.mso_converter.process_set_subseteq_process_set(formula.data[0], formula.data[2])
+                automaton = self.mso_converter.process_set_subseteq_process_set(formula.data[0], formula.data[2])
             # j = succ(i)
             elif len(formula.data) == 6 and formula.data[2] == TreeOperators.SUCC.value:
-                automaton, _ = self.mso_converter.process_successor(formula.data[4], formula.data[0])
+                automaton = self.mso_converter.process_successor(formula.data[4], formula.data[0])
 
         elif formula.data == TreeOperators.AND:
-            # automata union
-            print("union")
-            aut1, _ = self.convert_formula_to_automaton(formula.left)
-            aut2, _ = self.convert_formula_to_automaton(formula.right)
-            automaton = automata.union(aut1, aut2)
+            # convert both subtrees to an automaton
+            aut1 = self.convert_formula_to_automaton(formula.left)
+            aut2 = self.convert_formula_to_automaton(formula.right)
 
-        return automaton, _
+            # extend alphabet
+            symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
+            aut1 = automata.extend_alphabet(aut1, symbol_map)
+            aut2 = automata.extend_alphabet(aut2, symbol_map)
+
+            # automata union
+            automaton = automata.Automaton(
+                automata.union(aut1, aut2),
+                aut1.alphabet,
+                symbol_map
+            )
+
+            # first-order variables must be singletons
+            for index, symbol in enumerate(symbol_map):
+                if symbol.islower():
+                    sing = self.mso_converter.singleton(automaton, index)
+                    # intersection with result
+                    automaton.automaton = automata.intersection(
+                        automaton,
+                        sing
+                    )
+
+        return automaton
 
 class TreeConvertor(lark.visitors.Interpreter):
     def __init__(self):
