@@ -68,6 +68,12 @@ class Node:
 
     def is_atomic_formula(self):
         return self.children == 0
+    
+    def is_existential_quantifier(self):
+        return self.data[0] == TreeOperators.EXISTS.value
+    
+    def is_universal_quantifier(self):
+        return self.data[0] == TreeOperators.FORALL.value
 
 def print_tree(root: Node, tabs = 0):
     print("\t" * tabs + str(root.data))
@@ -147,6 +153,24 @@ class Formula:
             right_child = self.convert_formula_to_automaton(formula.right)
             automaton = self.convert_equivalence(left_child, right_child)
 
+        elif formula.is_existential_quantifier():
+            child = self.convert_formula_to_automaton(formula.left)
+            var_to_remove = formula.data[1]
+            automaton = self.convert_existential_quantifier(child, var_to_remove)
+
+        elif formula.is_universal_quantifier():
+            # forall i. phi <=> ! exists i. ! phi
+            child = self.convert_formula_to_automaton(formula.left)
+            child_neg = self.convert_negation(child)
+            var_to_remove = formula.data[1]
+            exists_child_neg = self.convert_existential_quantifier(child_neg, var_to_remove)
+            automaton = self.convert_negation(exists_child_neg)
+
+        return automaton
+    
+    def convert_existential_quantifier(self, aut: automata.Automaton, var_to_remove: str):
+        index_to_remove = aut.symbol_map.index(var_to_remove)
+        automaton = automata.remove_symbol_on_index(aut, index_to_remove)
         return automaton
     
     def convert_equivalence(self, aut1: automata.Automaton, aut2:automata.Automaton):
@@ -345,7 +369,11 @@ class BnfFormula:
 
         elif node.type == NodeType.PROCESS_QUANTIFIER:
             # remove variable from the set of free variables
-            node.free_fo_variables.remove(node.data[1])
+            try:
+                node.free_fo_variables.remove(node.data[1])
+            except:
+                #TODO handle SO variables
+                pass
 
         elif node.type == NodeType.LTL_OPERATOR:
             # find the name of at most one free fist-order variable

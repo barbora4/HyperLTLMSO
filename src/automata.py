@@ -112,3 +112,28 @@ def create_label(aut: mata_nfa.Nfa, symbol_map):
         if i != len(symbol_map) - 1:
             label += ", "
     aut.label = label
+
+def remove_symbol_on_index(aut: Automaton, index: int):
+    # create new automaton
+    new_alphabet = create_symbol_map(len(aut.symbol_map)-1)
+    config = mata_nfa.store()
+    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
+    new_aut.make_initial_states(aut.automaton.initial_states)
+    new_aut.make_final_states(aut.automaton.final_states)
+
+    # new symbol map
+    new_symbol_map = aut.symbol_map[:index] + aut.symbol_map[index+1:] if len(aut.symbol_map) > index+1 else aut.symbol_map[:index]
+    print(new_symbol_map)
+
+    # change transitions
+    alphabet_map = aut.alphabet.get_symbol_map()
+    transitions = aut.automaton.get_trans_as_sequence()
+    for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        # remove character on index
+        new_symbol = current_symbol[:index] + current_symbol[index+1:] if len(current_symbol) > index+1 else current_symbol[:index]
+        new_aut.add_transition(t.source, new_symbol, t.target)
+
+    # change automaton alphabet
+    return Automaton(new_aut, config['alphabet'], new_symbol_map)

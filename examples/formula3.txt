@@ -1,1 +1,1 @@
-forall t1. i in I <-> j in I
+forall t1. forall i. i in I
