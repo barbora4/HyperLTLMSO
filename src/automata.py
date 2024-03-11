@@ -33,6 +33,16 @@ def intersection(aut1: Automaton, aut2: Automaton):
     create_label(aut, aut1.symbol_map)
     return aut
 
+def complement(aut: Automaton):
+    result = mata_nfa.complement(aut.automaton, aut.alphabet)
+    create_label(result, aut.symbol_map)
+    return result
+
+def minimize(aut: Automaton):
+    result = mata_nfa.minimize(aut.automaton)
+    create_label(result, aut.symbol_map)
+    return result
+
 def extend_alphabet(aut: Automaton, new_symbol_map):
     # add new variables
     # indices of new variables

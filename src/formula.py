@@ -105,11 +105,9 @@ class Formula:
 
     def make_initial_automaton(self):
         self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
+        self.mso_initial_automaton.automaton = automata.minimize(self.mso_initial_automaton)
 
     def convert_formula_to_automaton(self, formula: Node):
-        #TODO automata operations
-        #TODO symbol maps!
-
         # return mso automaton for atomic formulae
         automaton = None
         if formula.is_atomic_formula():
@@ -123,42 +121,107 @@ class Formula:
             elif len(formula.data) == 6 and formula.data[2] == TreeOperators.SUCC.value:
                 automaton = self.mso_converter.process_successor(formula.data[4], formula.data[0])
 
-        elif formula.data in [TreeOperators.AND, TreeOperators.OR]:
+        elif formula.data == TreeOperators.AND:
             # convert both subtrees to an automaton
             aut1 = self.convert_formula_to_automaton(formula.left)
             aut2 = self.convert_formula_to_automaton(formula.right)
+            automaton = self.convert_and(aut1, aut2)
 
-            # extend alphabet
-            symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
-            aut1 = automata.extend_alphabet(aut1, symbol_map)
-            aut2 = automata.extend_alphabet(aut2, symbol_map)
+        elif formula.data == TreeOperators.OR:
+            # convert both subtrees to an automaton
+            aut1 = self.convert_formula_to_automaton(formula.left)
+            aut2 = self.convert_formula_to_automaton(formula.right)
+            automaton = self.convert_or(aut1, aut2)
 
-            if formula.data == TreeOperators.OR:
-                # automata union
-                automaton = automata.Automaton(
-                    automata.union(aut1, aut2),
-                    aut1.alphabet,
-                    symbol_map
+        elif formula.data == TreeOperators.NEG:
+            child = self.convert_formula_to_automaton(formula.left)
+            automaton = self.convert_negation(child)
+
+        elif formula.data == TreeOperators.IMPLIES:
+            left_child = self.convert_formula_to_automaton(formula.left)
+            right_child = self.convert_formula_to_automaton(formula.right)
+            automaton = self.convert_implication(left_child, right_child)
+
+        elif formula.data == TreeOperators.IFF:
+            left_child = self.convert_formula_to_automaton(formula.left)
+            right_child = self.convert_formula_to_automaton(formula.right)
+            automaton = self.convert_equivalence(left_child, right_child)
+
+        return automaton
+    
+    def convert_equivalence(self, aut1: automata.Automaton, aut2:automata.Automaton):
+        # A <-> B <=> (A -> B) & (B -> A)
+        left_implication = self.convert_implication(aut1, aut2)
+        right_implication = self.convert_implication(aut2, aut1)
+        automaton = self.convert_and(left_implication, right_implication)
+        return automaton
+    
+    def convert_implication(self, aut1: automata.Automaton, aut2: automata.Automaton):
+        # A -> B <=> !A | B
+        aut1_neg = self.convert_negation(aut1)
+        automaton = self.convert_or(aut1_neg, aut2)
+        return automaton 
+    
+    def convert_negation(self, aut: automata.Automaton):
+        # automata complementation
+        automaton = automata.Automaton(
+            automata.complement(aut),
+            aut.alphabet,
+            aut.symbol_map
+        )
+
+        # first order variables must be singletons
+        for index, symbol in enumerate(aut.symbol_map):
+            if symbol.islower():
+                sing = self.mso_converter.singleton(automaton, index)
+                # intersection with result
+                automaton.automaton = automata.intersection(
+                    automaton,
+                    sing
                 )
 
-                # first-order variables must be singletons
-                for index, symbol in enumerate(symbol_map):
-                    if symbol.islower():
-                        sing = self.mso_converter.singleton(automaton, index)
-                        # intersection with result
-                        automaton.automaton = automata.intersection(
-                            automaton,
-                            sing
-                        )
-            elif formula.data == TreeOperators.AND:
-                # automata intersection
-                automaton = automata.Automaton(
-                    automata.intersection(aut1, aut2),
-                    aut1.alphabet,
-                    symbol_map
+        return automaton 
+    
+    def convert_and(self, aut1: automata.Automaton, aut2: automata.Automaton):
+        # extend alphabet
+        symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
+        aut1 = automata.extend_alphabet(aut1, symbol_map)
+        aut2 = automata.extend_alphabet(aut2, symbol_map)
+
+        # automata intersection
+        automaton = automata.Automaton(
+            automata.intersection(aut1, aut2),
+            aut1.alphabet,
+            symbol_map
+        )
+
+        return automaton
+    
+    def convert_or(self, aut1: automata.Automaton, aut2: automata.Automaton):
+        # extend alphabet
+        symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
+        aut1 = automata.extend_alphabet(aut1, symbol_map)
+        aut2 = automata.extend_alphabet(aut2, symbol_map)
+
+        # automata union
+        automaton = automata.Automaton(
+            automata.union(aut1, aut2),
+            aut1.alphabet,
+            symbol_map
+        )
+
+        # first-order variables must be singletons
+        for index, symbol in enumerate(symbol_map):
+            if symbol.islower():
+                sing = self.mso_converter.singleton(automaton, index)
+                # intersection with result
+                automaton.automaton = automata.intersection(
+                    automaton,
+                    sing
                 )
 
         return automaton
+    
 
 class TreeConvertor(lark.visitors.Interpreter):
     def __init__(self):
