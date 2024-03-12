@@ -117,8 +117,11 @@ class Formula:
         # return mso automaton for atomic formulae
         automaton = None
         if formula.is_atomic_formula():
+            # new configuration variable
+            if isinstance(formula.data, str):
+                automaton = self.mso_converter.configuration_variable(formula.data)
             # i in I
-            if len(formula.data) == 3 and formula.data[1] == TreeOperators.IN.value:
+            elif len(formula.data) == 3 and formula.data[1] == TreeOperators.IN.value:
                 automaton = self.mso_converter.process_in_process_set(formula.data[0], formula.data[2])
             # I subseteq J
             elif len(formula.data) == 3 and formula.data[1] == TreeOperators.SUBSETEQ.value:
@@ -126,6 +129,9 @@ class Formula:
             # j = succ(i)
             elif len(formula.data) == 6 and formula.data[2] == TreeOperators.SUCC.value:
                 automaton = self.mso_converter.process_successor(formula.data[4], formula.data[0])
+            # atomic proposition
+            elif len(formula.data) == 3:
+                automaton = self.mso_converter.atomic_proposition(formula.data[0], formula.data[1], formula.data[2])
 
         elif formula.data == TreeOperators.AND:
             # convert both subtrees to an automaton
@@ -186,6 +192,18 @@ class Formula:
         automaton = self.convert_or(aut1_neg, aut2)
         return automaton 
     
+    def force_singletons(self, automaton: automata.Automaton):
+        # first order variables must be singletons
+        for index, symbol in enumerate(automaton.symbol_map):
+            # first order variables without parameter
+            if symbol.islower() and len(symbol)==1:
+                sing = self.mso_converter.singleton(automaton, index)
+                # intersection with result
+                automaton.automaton = automata.intersection(
+                    automaton,
+                    sing
+                )
+    
     def convert_negation(self, aut: automata.Automaton):
         # automata complementation
         automaton = automata.Automaton(
@@ -195,14 +213,7 @@ class Formula:
         )
 
         # first order variables must be singletons
-        for index, symbol in enumerate(aut.symbol_map):
-            if symbol.islower():
-                sing = self.mso_converter.singleton(automaton, index)
-                # intersection with result
-                automaton.automaton = automata.intersection(
-                    automaton,
-                    sing
-                )
+        self.force_singletons(automaton)
 
         return automaton 
     
@@ -234,15 +245,8 @@ class Formula:
             symbol_map
         )
 
-        # first-order variables must be singletons
-        for index, symbol in enumerate(symbol_map):
-            if symbol.islower():
-                sing = self.mso_converter.singleton(automaton, index)
-                # intersection with result
-                automaton.automaton = automata.intersection(
-                    automaton,
-                    sing
-                )
+        # first order variables must be singletons
+        self.force_singletons(automaton)
 
         return automaton
     

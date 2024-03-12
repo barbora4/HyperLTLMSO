@@ -4,6 +4,7 @@ import automata
 
 class MSOFormula:
     def __init__(self):
+        self.one_bit_mapping = {"0":0, "1":1}
         self.two_bit_mapping = {"00":0, "01":1, "10":2, "11":3}
     
     def process_in_process_set(self, process_var, process_set_var):
@@ -58,7 +59,7 @@ class MSOFormula:
         # maps indices to symbols
         symbol_map = [predecessor, successor]
 
-        return automata.Automaton(process_successor, config['alphabet'], process_successor)
+        return automata.Automaton(process_successor, config['alphabet'], symbol_map)
     
     def singleton(self, aut: automata.Automaton, index: int):
         config = mata_nfa.store()
@@ -77,3 +78,54 @@ class MSOFormula:
                 sing.add_transition(0, symbol, 1)
 
         return automata.Automaton(sing, config['alphabet'], aut.symbol_map)
+
+    def atomic_proposition(self, symbol, trace_var, process_var):
+        config = mata_nfa.store()
+        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(self.two_bit_mapping)
+
+        # construct mata automaton for parameterized atomic proposition
+        ap = mata_nfa.Nfa(2, label=symbol+"_"+trace_var+"["+process_var+"]")
+        ap.make_initial_state(0)
+        ap.make_final_state(1)
+        ap.add_transition(0, "00", 0)
+        ap.add_transition(0, "10", 0)
+        ap.add_transition(0, "11", 1)
+        ap.add_transition(1, "00", 1)
+        ap.add_transition(1, "10", 1)
+
+        # maps indices to symbols
+        symbol_map = [symbol+"_"+trace_var, process_var]
+
+        return automata.Automaton(ap, config['alphabet'], symbol_map)
+    
+    def configuration_variable(self, config_var):
+        config = mata_nfa.store()
+
+        # configuration variable without parameter
+        if "[" not in config_var:
+            config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(self.one_bit_mapping)
+            aut = mata_nfa.Nfa(1, label=config_var)
+            aut.make_initial_state(0)
+            aut.make_final_state(1)
+            aut.add_transition(0, "1", 0)
+
+            symbol_map = [config_var]
+
+        # parameterized configuration variable
+        else:
+            config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(self.two_bit_mapping)
+            var_name = config_var[:len(config_var)-3]
+            process_name = config_var[-2]
+            aut = mata_nfa.Nfa(2, label=config_var)
+            aut.make_initial_state(0)
+            aut.make_final_state(1)
+            aut.add_transition(0, "00", 0)
+            aut.add_transition(0, "10", 0)
+            aut.add_transition(0, "11", 1)
+            aut.add_transition(1, "00", 1)
+            aut.add_transition(1, "10", 1)
+
+            # maps indices to symbols
+            symbol_map = [var_name, process_name]
+
+        return automata.Automaton(aut, config['alphabet'], symbol_map)

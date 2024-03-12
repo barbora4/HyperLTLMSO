@@ -124,7 +124,6 @@ def remove_symbol_on_index(aut: Automaton, index: int):
 
     # new symbol map
     new_symbol_map = aut.symbol_map[:index] + aut.symbol_map[index+1:] if len(aut.symbol_map) > index+1 else aut.symbol_map[:index]
-    print(new_symbol_map)
 
     # change transitions
     alphabet_map = aut.alphabet.get_symbol_map()
