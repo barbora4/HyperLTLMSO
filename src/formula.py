@@ -393,14 +393,19 @@ class BnfFormula:
 
             # create local constraints
             if node.data in [TreeOperators.ALWAYS.value, TreeOperators.EVENTUALLY.value]: 
-                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
-                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
-                root.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND if node.data == TreeOperators.ALWAYS.value else TreeOperators.OR, 2)
-                root.left.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
-                root.left.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
+                if free_variable != "":
+                    root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
+                    root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
+                    tmp = root.left
+                else:
+                    root = Node(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
+                    tmp = root
+                tmp.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
+                tmp.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND if node.data == TreeOperators.ALWAYS.value else TreeOperators.OR, 2)
+                tmp.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
+                tmp.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
                 # place original subtree here
-                root.left.right.left = node.left.copy()
+                tmp.right.left = node.left.copy()
                 self.local_constraints.append(root)
             
             elif node.data == TreeOperators.WEAK_UNTIL.value:
