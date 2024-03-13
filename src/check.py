@@ -18,13 +18,21 @@ if __name__ == "__main__":
     # print formula parsed into Buchi Normal Form
     formula.print_formula()
 
+    # create automaton for initial mso formula
+    formula.make_initial_automaton()
+    #formula.plot_mso_initial_automaton()
+
     # load initial configuration of a system (.mata)
     initial_configurations = automata.get_initial_configurations(
         args["initial_config"],
         args["symbol_mapping"]
     )
-    initial_configurations.plot_automaton()
+    #initial_configurations.plot_automaton()
 
-    # create automaton for initial mso formula
-    formula.make_initial_automaton()
-    #formula.print_mso_initial_automaton()
+    # extended initial configurations with MSO formula
+    restricted_initial_conf = automata.restrict_automaton_with_formula(
+        initial_configurations, 
+        formula.mso_initial_automaton,
+        formula.trace_quantifiers_list
+    )
+    restricted_initial_conf.plot_automaton()

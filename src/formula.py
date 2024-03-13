@@ -87,6 +87,9 @@ class Formula:
         self.original_formula = TreeConvertor()
         self.original_formula.visit(parse.Transformer().transform(tree))
         
+        # list of trace quantifiers in prefix
+        self.trace_quantifiers_list = self.original_formula.trace_quantifiers_list 
+
         self.bnf = BnfFormula()
         self.bnf.translate_formula_into_bnf(self.original_formula.root) 
 
@@ -106,7 +109,7 @@ class Formula:
             print_tree(constraint)
         print("\n--------------------\n")
 
-    def print_mso_initial_automaton(self):
+    def plot_mso_initial_automaton(self):
         self.mso_initial_automaton.plot_automaton()
 
     def make_initial_automaton(self):
@@ -255,6 +258,7 @@ class TreeConvertor(lark.visitors.Interpreter):
     def __init__(self):
         self.root = None
         self.current = None
+        self.trace_quantifiers_list = list()
 
     def create_node(self, type: NodeType, data, capacity: int):
         new_node = Node(type, data, capacity)
@@ -277,6 +281,8 @@ class TreeConvertor(lark.visitors.Interpreter):
     
     # convert formula to BNF without trace quantifiers
     def trace_quantifiers(self, tree):
+        # add trace quantifier to a list
+        self.trace_quantifiers_list.append(tree.children[0].children)
         self.visit_children(tree)
 
     def process_quantifiers_head(self, tree):

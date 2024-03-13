@@ -49,7 +49,7 @@ def minimize(aut: Automaton):
     create_label(result, aut.symbol_map)
     return result
 
-def extend_alphabet(aut: Automaton, new_symbol_map):
+def extend_alphabet(aut: Automaton, new_symbol_map) -> Automaton:
     # add new variables
     # indices of new variables
     mapping = list()
@@ -92,6 +92,8 @@ def extend_alphabet(aut: Automaton, new_symbol_map):
                     new_variable_index += 1
             # add new transition
             new_aut.add_transition(t.source, new_symbol, t.target)
+
+    new_aut.label = "Symbols: " + str(new_symbol_map)
 
     # change automaton alphabet
     return Automaton(new_aut, config['alphabet'], new_symbol_map)
@@ -142,3 +144,13 @@ def remove_symbol_on_index(aut: Automaton, index: int):
 
     # change automaton alphabet
     return Automaton(new_aut, config['alphabet'], new_symbol_map)
+
+def restrict_automaton_with_formula(aut: Automaton, formula: Automaton, trace_quantifiers: list):
+    # 1) extend alphabets of both automata
+    new_symbol_map = list(set(aut.symbol_map).union(set(formula.symbol_map)))
+    aut = extend_alphabet(aut, new_symbol_map)
+    formula = extend_alphabet(formula, new_symbol_map)
+
+    #TODO do not extend if t and t_t1 -> this is the same symbol but for tape number 1
+
+    return aut
