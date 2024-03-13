@@ -4,8 +4,7 @@ import parse
 from formula import Formula
 import automata
 import mso
-import libmata.nfa.nfa as mata_nfa
-import libmata.alphabets as alphabets
+import libmata 
 
 if __name__ == "__main__":
     grammar_parser = parse.create_parser("grammar.txt")
@@ -20,8 +19,12 @@ if __name__ == "__main__":
     formula.print_formula()
 
     # load initial configuration of a system (.mata)
-    initial_configurations = automata.get_initial_configurations(args["initial_config"])
+    initial_configurations = automata.get_initial_configurations(
+        args["initial_config"],
+        args["symbol_mapping"]
+    )
+    initial_configurations.plot_automaton()
 
     # create automaton for initial mso formula
     formula.make_initial_automaton()
-    formula.print_mso_initial_automaton()
+    #formula.print_mso_initial_automaton()

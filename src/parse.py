@@ -49,6 +49,11 @@ def parse_command_line_arguments():
         help="path to the .mata file with FA representing initial configurations of the system",
         required = True
     )
+    input_parser.add_argument(
+        "--symbol_mapping",
+        help="path to the file with list of symbols",
+        required=True
+    )
     args = vars(input_parser.parse_args())
 
     # get input formula

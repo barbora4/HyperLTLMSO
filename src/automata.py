@@ -8,20 +8,26 @@ class Automaton:
         self.alphabet = alphabet
         self.symbol_map = symbol_map
 
-def get_initial_configurations(inputFileName):
+    def plot_automaton(self):
+        plotting.plot(self.automaton)
+
+def get_initial_configurations(inputFileName, mappingFileName):
+    # get symbol mapping
+    with open(mappingFileName) as f:
+        symbol_map = f.read().splitlines()
+    
     # get FA from .mata
-    alpha = alphabets.OnTheFlyAlphabet()
+    config = mata_nfa.store()
+    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(len(symbol_map)))
     automaton = parser.from_mata(
         inputFileName, 
-        alpha
+        config['alphabet']
     )
+    automaton.label = "Symbols: " + str(symbol_map)
 
     # symbols are in automaton.get_symbols()
     # they are mapped to numbers, symbol map is in alpha.get_symbol_map()
-    return automaton
-
-def plot_automaton(automaton: Automaton):
-    plotting.plot(automaton.automaton)
+    return Automaton(automaton, config['alphabet'], symbol_map)
 
 def union(aut1: Automaton, aut2: Automaton):
     aut = mata_nfa.union(aut1.automaton, aut2.automaton)

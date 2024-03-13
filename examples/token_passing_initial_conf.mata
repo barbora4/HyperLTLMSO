@@ -3,6 +3,5 @@
 %Alphabet-auto
 %Initial p
 %Final q
-p n p
-p t q
-q n q
+p 10 q
+q 01 q

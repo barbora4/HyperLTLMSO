@@ -107,7 +107,7 @@ class Formula:
         print("\n--------------------\n")
 
     def print_mso_initial_automaton(self):
-        automata.plot_automaton(self.mso_initial_automaton)
+        self.mso_initial_automaton.plot_automaton()
 
     def make_initial_automaton(self):
         self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
