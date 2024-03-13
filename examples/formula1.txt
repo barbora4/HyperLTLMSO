@@ -1,1 +1,1 @@
-forall t1. forall t2. forall i. F a_t1[i]
+forall t1. forall t2. forall i. (F t_t1[i]) & (F t_t2[i])

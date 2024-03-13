@@ -1,12 +1,15 @@
 import libmata.nfa.nfa as mata_nfa
 from libmata import parser, alphabets, plotting
 import itertools
+import re
 
 class Automaton:
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map):
         self.automaton = automaton
         self.alphabet = alphabet
         self.symbol_map = symbol_map
+        self.number_of_tapes = 1
+        self.symbols_on_tapes = [len(symbol_map)] # number of symbols on each tape
 
     def plot_automaton(self):
         plotting.plot(self.automaton)
@@ -45,6 +48,11 @@ def complement(aut: Automaton):
     return result
 
 def minimize(aut: Automaton):
+    result = mata_nfa.minimize(aut.automaton)
+    create_label(result, aut.symbol_map)
+    return result
+
+def determinize(aut: Automaton):
     result = mata_nfa.minimize(aut.automaton)
     create_label(result, aut.symbol_map)
     return result
@@ -145,12 +153,95 @@ def remove_symbol_on_index(aut: Automaton, index: int):
     # change automaton alphabet
     return Automaton(new_aut, config['alphabet'], new_symbol_map)
 
-def restrict_automaton_with_formula(aut: Automaton, formula: Automaton, trace_quantifiers: list):
-    # 1) extend alphabets of both automata
-    new_symbol_map = list(set(aut.symbol_map).union(set(formula.symbol_map)))
-    aut = extend_alphabet(aut, new_symbol_map)
-    formula = extend_alphabet(formula, new_symbol_map)
+def create_extended_aut_map(aut_map: list, formula_map: list):
+    new_map = aut_map
+    for symbol in formula_map:
+        if symbol not in new_map and len(symbol)>3 and symbol[0] not in new_map:
+            if len(symbol)>3:
+                new_map.append(symbol[0])
+            else:
+                new_map.append(symbol)
 
-    #TODO do not extend if t and t_t1 -> this is the same symbol but for tape number 1
+    return new_map
+
+def create_extended_formula_map(formula_map: list, aut_map: list):
+    new_map = formula_map.copy()
+    for symbol in aut_map:
+        r = re.compile(symbol+"_.*")
+        matches = list(filter(r.match, formula_map))
+        if len(matches) == 0:
+            new_map.append(symbol)
+
+    return new_map
+
+def create_multitape_automaton(aut: Automaton, number_of_tapes: int):
+    # first determinize the original automaton
+    aut.automaton = determinize(aut)
+
+    # create new alphabet
+    symbols_on_tapes = [len(aut.symbol_map) for i in range(number_of_tapes)]
+    new_alphabet = create_symbol_map(len(symbols_on_tapes) * number_of_tapes)
+    transitions = aut.automaton.get_trans_as_sequence()
+    alphabet_map = aut.alphabet.get_symbol_map()
+    new_variables_count = (number_of_tapes - 1) * len(aut.symbol_map)
+    new_variables = list(itertools.product([0,1], repeat=new_variables_count))
+    new_symbol_map = list()
+    for i in range(number_of_tapes):
+        new_symbol_map += aut.symbol_map 
+    
+    # composition of number_of_tapes automata
+    # corresponds to creating number_of_tapes automata with all possible options on other tapes
+    # and then performing intersection of these automata
+    automata_to_intersect = list()
+    for i in range(number_of_tapes):
+        # create alphabet
+        config = mata_nfa.store()
+        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
+        new_aut.make_initial_states(aut.automaton.initial_states)
+        new_aut.make_final_states(aut.automaton.final_states)
+
+        # same symbols on corresponding tape, all options on other ones
+        for t in transitions:
+            for option in new_variables:
+                current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+                symbol_before = ""
+                for j in range(i*len(aut.symbol_map)):
+                    symbol_before += str(option[j])
+                new_symbol = symbol_before + current_symbol
+                if len(option) > (i+1)*len(aut.symbol_map)-1:
+                    symbol_after = ""
+                    for j in range(i*len(aut.symbol_map), len(option)):
+                        symbol_after += str(option[j])
+                    new_symbol += symbol_after
+                new_aut.add_transition(t.source, new_symbol, t.target)
+        new_aut.label = "Symbols: " + str(new_symbol_map)
+
+        automata_to_intersect.append(Automaton(new_aut, config['alphabet'], new_symbol_map))
+
+    # intersect automata in the list
+    current_automaton = automata_to_intersect[0]
+    for i in range(1, len(automata_to_intersect)):
+        current_automaton = Automaton(
+            intersection(current_automaton, automata_to_intersect[i]),
+            current_automaton.alphabet,
+            current_automaton.symbol_map
+        )
+
+    # minimize the result
+    current_automaton.automaton = minimize(current_automaton)
+
+    # add tape information
+    current_automaton.number_of_tapes = number_of_tapes
+    current_automaton.symbols_on_tapes = symbols_on_tapes
+
+    return current_automaton 
+
+def restrict_automaton_with_formula(aut: Automaton, formula: Automaton, trace_quantifiers: list):
+    # 1) create multitape automaton for initial configurations
+    aut = create_multitape_automaton(aut, len(trace_quantifiers))
+
+    # 2) create multitape automaton for initial mso formula
+    #TODO
 
     return aut
