@@ -106,7 +106,7 @@ class MSOFormula:
             config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(self.one_bit_mapping)
             aut = mata_nfa.Nfa(1, label=config_var)
             aut.make_initial_state(0)
-            aut.make_final_state(1)
+            aut.make_final_state(0)
             aut.add_transition(0, "1", 0)
 
             symbol_map = [config_var]
