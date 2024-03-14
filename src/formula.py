@@ -83,7 +83,7 @@ def print_tree(root: Node, tabs = 0):
         print_tree(root.right, tabs+1)
 
 class Formula:
-    def __init__(self, tree):
+    def __init__(self, tree, atomic_propositions):
         self.original_formula = TreeConvertor()
         self.original_formula.visit(parse.Transformer().transform(tree))
         
@@ -93,7 +93,7 @@ class Formula:
         self.bnf = BnfFormula()
         self.bnf.translate_formula_into_bnf(self.original_formula.root) 
 
-        self.mso_converter = mso.MSOFormula()
+        self.mso_converter = mso.MSOFormula(self.trace_quantifiers_list, atomic_propositions)
         self.mso_initial_automaton = None 
 
     def print_formula(self):
@@ -178,7 +178,8 @@ class Formula:
         return automaton
     
     def convert_existential_quantifier(self, aut: automata.Automaton, var_to_remove: str):
-        index_to_remove = aut.symbol_map.index(var_to_remove)
+        # find variable to remove on the last tape 
+        index_to_remove = aut.symbol_map[-1].index(var_to_remove)
         automaton = automata.remove_symbol_on_index(aut, index_to_remove)
         return automaton
     
@@ -196,11 +197,11 @@ class Formula:
         return automaton 
     
     def force_singletons(self, automaton: automata.Automaton):
-        # first order variables must be singletons
-        for index, symbol in enumerate(automaton.symbol_map):
+        # first order variables must be singletons (only occuring on the last tape)
+        for index, symbol in enumerate(automaton.symbol_map[-1]):
             # first order variables without parameter
             if symbol.islower() and len(symbol)==1:
-                sing = self.mso_converter.singleton(automaton, index)
+                sing = self.mso_converter.singleton(automaton, (automaton.number_of_tapes-1)*len(automaton.atomic_propositions)+index)
                 # intersection with result
                 automaton.automaton = automata.intersection(
                     automaton,
@@ -212,7 +213,9 @@ class Formula:
         automaton = automata.Automaton(
             automata.complement(aut),
             aut.alphabet,
-            aut.symbol_map
+            aut.symbol_map,
+            aut.number_of_tapes,
+            aut.atomic_propositions
         )
 
         # first order variables must be singletons
@@ -221,31 +224,37 @@ class Formula:
         return automaton 
     
     def convert_and(self, aut1: automata.Automaton, aut2: automata.Automaton):
-        # extend alphabet
-        symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
-        aut1 = automata.extend_alphabet(aut1, symbol_map)
-        aut2 = automata.extend_alphabet(aut2, symbol_map)
+        # extend alphabet of last tapes (configuration and process variables)
+        symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+        aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+        aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+        new_symbol_map = aut1.symbol_map
+        new_symbol_map[-1] = symbol_map_last_tape
 
         # automata intersection
         automaton = automata.Automaton(
             automata.intersection(aut1, aut2),
             aut1.alphabet,
-            symbol_map
+            new_symbol_map,
+            aut1.number_of_tapes,
+            aut1.atomic_propositions
         )
 
         return automaton
     
     def convert_or(self, aut1: automata.Automaton, aut2: automata.Automaton):
-        # extend alphabet
-        symbol_map = list(set(aut1.symbol_map).union(set(aut2.symbol_map)))
-        aut1 = automata.extend_alphabet(aut1, symbol_map)
-        aut2 = automata.extend_alphabet(aut2, symbol_map)
+        # extend alphabet of last tapes (configuration and process variables)
+        symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+        aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+        aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+        new_symbol_map = aut1.symbol_map
+        new_symbol_map[-1] = symbol_map_last_tape
 
         # automata union
         automaton = automata.Automaton(
             automata.union(aut1, aut2),
             aut1.alphabet,
-            symbol_map
+            new_symbol_map
         )
 
         # first order variables must be singletons
@@ -374,7 +383,7 @@ class BnfFormula:
                 node.free_fo_variables.add(node.data[0])
                 node.free_fo_variables.add(node.data[4])
 
-        elif node.type == NodeType.ATOMIC_PROPOSITION:
+        elif node.type == NodeType.ATOMIC_PROPOSITION and node.parent != None:
             node.parent.free_fo_variables.add(node.data[2])
 
         elif node.type == NodeType.PROCESS_QUANTIFIER:
