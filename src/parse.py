@@ -50,6 +50,11 @@ def parse_command_line_arguments():
         required = True
     )
     input_parser.add_argument(
+        "--system_transducer",
+        help="path to the file with transducer representing transitition between system configurations",
+        required = True 
+    )
+    input_parser.add_argument(
         "--symbol_mapping",
         help="path to the file with list of symbols",
         required=True

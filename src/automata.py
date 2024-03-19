@@ -16,11 +16,12 @@ class Automaton:
     def plot_automaton(self):
         plotting.plot(self.automaton)
 
-def get_initial_configurations(inputFileName, mappingFileName):
-    # get symbol mapping
-    with open(mappingFileName) as f:
-        symbol_map = f.read().splitlines()
-    
+class Transducer(Automaton):
+    def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):
+        Automaton.__init__(self, automaton, alphabet, symbol_map, number_of_tapes, atomic_propositions)
+        self.tapes_half = number_of_tapes / 2
+
+def get_initial_configurations(inputFileName, symbol_map):
     # get FA from .mata
     config = mata_nfa.store()
     config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(len(symbol_map)))
@@ -258,3 +259,52 @@ def restrict_automaton_with_formula(aut: Automaton, formula_aut: Automaton, trac
     result.automaton = minimize(result)
 
     return result 
+
+def parse_transducer_from_file(filename, symbol_map) -> Transducer:
+    with open(filename) as f:
+        input = f.read().splitlines()
+
+    number_of_tapes = 2
+    new_symbol_map = [copy.deepcopy(symbol_map) for _ in range(2)]
+
+    # create new alphabet
+    new_alphabet = create_symbol_map(len(symbol_map)*2)
+    config = mata_nfa.store()
+    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+
+    states = []
+    initial_states = []
+    final_states = []
+    transitions = []
+    for line in input:
+        # check first line
+        if line.startswith("@NFA-explicit"):
+            continue
+        # get states
+        elif line.startswith("%States-enum"):
+            states = line.split()[1:]
+        # get initial states
+        elif line.startswith("%Initial"):
+            initial_states = line.split()[1:]
+        # get final states
+        elif line.startswith("%Final"):
+            final_states = line.split()[1:]
+        # transitions
+        else:
+            transitions.append(line.split())
+
+    # create automaton
+    automaton = mata_nfa.Nfa(len(states), label="Symbols: " + str(new_symbol_map))
+    for state in initial_states:
+        automaton.make_initial_state(states.index(state))
+    for state in final_states:
+        automaton.make_final_state(states.index(state))
+    for t in transitions:
+        if len(t) != 3:
+            raise SyntaxError("Wrong input format")
+        src = states.index(t[0])
+        dst = states.index(t[2])
+        symbol = t[1][:int(len(t[1])/2)] + t[1][(int(len(t[1])/2))+1:]
+        automaton.add_transition(src, symbol, dst)
+
+    return Transducer(automaton, config['alphabet'], new_symbol_map, number_of_tapes, symbol_map)
