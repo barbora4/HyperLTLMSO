@@ -419,5 +419,51 @@ def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, tra
     # 1) create multitape transducer for the system
     aut = create_multitape_transducer(aut, (len(trace_quantifiers)+1)*2)
     
+    # 2) add two configuration tapes and extend alphabet
+    symbol_map_last_tape = formula_aut.symbol_map[-1]
+    aut = extend_transducer_alphabet_on_configuration_tapes(aut, symbol_map_last_tape)
+
     #TODO
     return aut 
+
+def extend_transducer_alphabet_on_configuration_tapes(automaton: Automaton, symbol_map):
+    # add new variables
+    new_variables = list(itertools.product([0,1], repeat=len(symbol_map)*2))
+
+    # new alphabet
+    number_of_symbols = (automaton.number_of_tapes-2) * len(automaton.atomic_propositions) + 2 * len(symbol_map)
+    new_alphabet = create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+    new_aut = mata_nfa.Nfa(automaton.automaton.num_of_states())
+    new_aut.make_initial_states(automaton.automaton.initial_states)
+    new_aut.make_final_states(automaton.automaton.final_states)
+
+    alphabet_map = automaton.alphabet.get_symbol_map()
+    transitions = automaton.automaton.get_trans_as_sequence()
+
+    # change transitions
+    original_symbols_length = (automaton.number_of_tapes-2) * len(automaton.atomic_propositions)
+    for t in transitions:
+        for option in new_variables:
+            current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+            new_symbol = current_symbol[:int(original_symbols_length/2)]
+            for j in range(int(len(option)/2)):
+                new_symbol += str(option[j])
+            for j in range(int(original_symbols_length/2)):
+                new_symbol += current_symbol[int(original_symbols_length/2)+j]
+            for j in range(int(len(option)/2), len(option)):
+                new_symbol += str(option[j])
+            new_aut.add_transition(t.source, new_symbol, t.target)
+
+    # new symbol map
+    new_symbol_map = []
+    for i in range(int(automaton.number_of_tapes/2)-1):
+        new_symbol_map.append(automaton.symbol_map[i])
+    new_symbol_map.append(copy.deepcopy(symbol_map))
+    for i in range(int(automaton.number_of_tapes/2)-1):
+        new_symbol_map.append(automaton.symbol_map[i])
+    new_symbol_map.append(copy.deepcopy(symbol_map))
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+
+    return Automaton(new_aut, alphabet, new_symbol_map, automaton.number_of_tapes, automaton.atomic_propositions)
