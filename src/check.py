@@ -28,7 +28,7 @@ if __name__ == "__main__":
     tree = grammar_parser.parse(input_formula)
     formula = Formula(tree, atomic_propositions)
     # print formula parsed into Buchi Normal Form
-    #formula.print_formula()
+    formula.print_formula()
 
     # create automaton for initial mso formula
     formula.make_initial_automaton()
@@ -47,4 +47,8 @@ if __name__ == "__main__":
         args["system_transducer"],
         symbol_map 
     )
-    system_transducer.plot_automaton()
+    #system_transducer.plot_automaton()
+
+    # create transducer for local constraints of mso formula
+    formula.make_local_constraints_transducer()
+    formula.plot_local_constraints_transducer()

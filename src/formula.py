@@ -3,6 +3,8 @@ import lark
 from enum import Enum
 import automata
 import mso
+import libmata.nfa.nfa as mata_nfa
+from libmata import parser, alphabets, plotting
 
 class NodeType(Enum):
     PROCESS_QUANTIFIER = 1
@@ -70,10 +72,10 @@ class Node:
         return self.children == 0
     
     def is_existential_quantifier(self):
-        return self.data[0] == TreeOperators.EXISTS.value
+        return self.data[0] in [TreeOperators.EXISTS.value, TreeOperators.EXISTS]
     
     def is_universal_quantifier(self):
-        return self.data[0] == TreeOperators.FORALL.value
+        return self.data[0] in [TreeOperators.FORALL.value, TreeOperators.FORALL]   
 
 def print_tree(root: Node, tabs = 0):
     print("\t" * tabs + str(root.data))
@@ -95,6 +97,7 @@ class Formula:
 
         self.mso_converter = mso.MSOFormula(self.trace_quantifiers_list, atomic_propositions)
         self.mso_initial_automaton = None 
+        self.mso_local_constraints_transducer = None
 
     def print_formula(self):
         print("MSO formula: ")
@@ -112,9 +115,17 @@ class Formula:
     def plot_mso_initial_automaton(self):
         self.mso_initial_automaton.plot_automaton()
 
+    def plot_local_constraints_transducer(self):
+        self.mso_local_constraints_transducer.plot_automaton()
+
     def make_initial_automaton(self):
         self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
         self.mso_initial_automaton.automaton = automata.minimize(self.mso_initial_automaton)
+
+    def make_local_constraints_transducer(self):
+        #TODO convert all constraints
+        self.mso_local_constraints_transducer = self.convert_formula_to_automaton(self.bnf.local_constraints[0])
+        self.mso_local_constraints_transducer.automaton = automata.minimize(self.mso_local_constraints_transducer)
 
     def convert_formula_to_automaton(self, formula: Node):
         # return mso automaton for atomic formulae
@@ -162,6 +173,15 @@ class Formula:
             right_child = self.convert_formula_to_automaton(formula.right)
             automaton = self.convert_equivalence(left_child, right_child)
 
+        elif formula.data == TreeOperators.NEXT:
+            # transducer
+            # configuration variable on the second tape (next step)
+            child = formula.left
+            if child.is_atomic_formula() and isinstance(child.data, str):
+                automaton = self.mso_converter.configuration_variable(child.data, next_step=True)
+            else:
+                raise ValueError("Next is allowed only for configuration variables!")
+
         elif formula.is_existential_quantifier():
             child = self.convert_formula_to_automaton(formula.left)
             var_to_remove = formula.data[1]
@@ -174,13 +194,19 @@ class Formula:
             var_to_remove = formula.data[1]
             exists_child_neg = self.convert_existential_quantifier(child_neg, var_to_remove)
             automaton = self.convert_negation(exists_child_neg)
-
+        
         return automaton
     
-    def convert_existential_quantifier(self, aut: automata.Automaton, var_to_remove: str):
+    def convert_existential_quantifier(self, aut: automata.Automaton, var_to_remove: str):        
         # find variable to remove on the last tape 
         index_to_remove = aut.symbol_map[-1].index(var_to_remove)
         automaton = automata.remove_symbol_on_index(aut, index_to_remove)
+
+        if aut.number_of_tapes - len(self.trace_quantifiers_list) == 2:
+            # transducer -> remove variable on last two tapes
+            index_to_remove = automaton.symbol_map[-2].index(var_to_remove)
+            automaton = automata.remove_symbol_on_index(automaton, index_to_remove, second_to_last=True)
+
         return automaton
     
     def convert_equivalence(self, aut1: automata.Automaton, aut2:automata.Automaton):
@@ -197,68 +223,173 @@ class Formula:
         return automaton 
     
     def force_singletons(self, automaton: automata.Automaton):
-        # first order variables must be singletons (only occuring on the last tape)
-        for index, symbol in enumerate(automaton.symbol_map[-1]):
-            # first order variables without parameter
-            if symbol.islower() and len(symbol)==1:
-                sing = self.mso_converter.singleton(automaton, (automaton.number_of_tapes-1)*len(automaton.atomic_propositions)+index)
-                # intersection with result
-                automaton.automaton = automata.intersection(
-                    automaton,
-                    sing
-                )
+        # indices of configuration tapes
+        configuration_tapes = [i+1 for i in range(automaton.number_of_tapes - len(self.trace_quantifiers_list))]
+        for tape_index in configuration_tapes:
+            prefix_length = sum(len(map) for map in automaton.symbol_map[:-tape_index])
+            # first order variables must be singletons (only occuring on the last tape)
+            for index, symbol in enumerate(automaton.symbol_map[-tape_index]):
+                # first order variables without parameter
+                if symbol.islower() and len(symbol)==1:
+                    sing = self.mso_converter.singleton(automaton, prefix_length+index)
+                    # intersection with result
+                    automaton.automaton = automata.intersection(
+                        automaton,
+                        sing
+                    )
+
+    def force_same_process_vars(self, automaton: automata.Automaton):
+        # process and process set variables must be the same in the next step
+        if automaton.number_of_tapes - len(self.trace_quantifiers_list) != 2:
+            # only for transducers
+            return  
+        
+        # process vars are denoted by one symbol
+        # find indices to check
+        indices = list()
+        for i, symbol in enumerate(automaton.symbol_map[-1]):
+            if len(symbol) == 1:
+                indices.append(i)
+
+        mata_nfa.store()["alphabet"] = automaton.alphabet
+        transitions_to_remove = list()
+        alphabet_map = automaton.alphabet.get_symbol_map()
+        first_tape_position = sum(len(map) for map in automaton.symbol_map[:-2])
+        second_tape_position = sum(len(map) for map in automaton.symbol_map[:-1])
+        for t in automaton.automaton.get_trans_as_sequence():
+            current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+            for index in indices:
+                if current_symbol[first_tape_position+index] != current_symbol[second_tape_position+index]:
+                    transitions_to_remove.append(t)
+                    break
+
+        # remove transitions
+        for t in transitions_to_remove:
+            automaton.automaton.remove_trans(t)
     
     def convert_negation(self, aut: automata.Automaton):
         # automata complementation
         automaton = automata.Automaton(
             automata.complement(aut),
             aut.alphabet,
-            aut.symbol_map,
+            aut.symbol_map.copy(),
             aut.number_of_tapes,
             aut.atomic_propositions
         )
 
         # first order variables must be singletons
         self.force_singletons(automaton)
+        self.force_same_process_vars(automaton)
+
+        automaton.automaton = automata.minimize(automaton)
 
         return automaton 
     
+    def get_new_transducer_symbol_map(self, aut1: automata.Automaton, aut2: automata.Automaton):
+        all_first_tape = list(set(aut1.symbol_map[-2]).union(set(aut2.symbol_map[-2])))
+        all_second_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+        return list(set(all_first_tape).union(set(all_second_tape)))
+
     def convert_and(self, aut1: automata.Automaton, aut2: automata.Automaton):
-        # extend alphabet of last tapes (configuration and process variables)
-        symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
-        aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
-        aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
-        new_symbol_map = aut1.symbol_map
-        new_symbol_map[-1] = symbol_map_last_tape
+        if aut1.number_of_tapes == aut2.number_of_tapes:
+            # extend alphabet of last tapes (configuration and process variables)
+            symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            new_symbol_map = aut1.symbol_map.copy()
+            new_symbol_map[-1] = symbol_map_last_tape
+            bigger_aut = aut1
+            
+        elif aut1.number_of_tapes > aut2.number_of_tapes:
+            bigger_aut = aut1
+            # create new configuration tape for a smaller automaton
+            automata.create_new_tape(aut2)
+            # all symbols on configuration tapes
+            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            # extend alphabets on both tapes
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
+            new_symbol_map = aut1.symbol_map.copy()
+
+        elif aut2.number_of_tapes > aut1.number_of_tapes:
+            bigger_aut = aut2
+            # create new configuration tape for a smaller automaton
+            automata.create_new_tape(aut1)
+            # all symbols on configuration tapes
+            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            # extend alphabets on both tapes
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape.copy())
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape.copy(), second_to_last=True)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape.copy())
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape.copy(), second_to_last=True)
+            new_symbol_map = aut1.symbol_map.copy()
 
         # automata intersection
         automaton = automata.Automaton(
             automata.intersection(aut1, aut2),
-            aut1.alphabet,
+            bigger_aut.alphabet,
             new_symbol_map,
-            aut1.number_of_tapes,
-            aut1.atomic_propositions
+            bigger_aut.number_of_tapes,
+            bigger_aut.atomic_propositions.copy() 
         )
+
+        self.force_same_process_vars(automaton)
+        automaton.automaton = automata.minimize(automaton)
 
         return automaton
     
     def convert_or(self, aut1: automata.Automaton, aut2: automata.Automaton):
-        # extend alphabet of last tapes (configuration and process variables)
-        symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
-        aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
-        aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
-        new_symbol_map = aut1.symbol_map
-        new_symbol_map[-1] = symbol_map_last_tape
+        if aut1.number_of_tapes == aut2.number_of_tapes:
+            # extend alphabet of last tapes (configuration and process variables)
+            symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            new_symbol_map = aut1.symbol_map.copy()
+            new_symbol_map[-1] = symbol_map_last_tape
+            bigger_aut = aut1
+
+        elif aut1.number_of_tapes > aut2.number_of_tapes:
+            bigger_aut = aut1
+            # create new configuration tape for a smaller automaton
+            automata.create_new_tape(aut2)
+            # all symbols on configuration tapes
+            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            # extend alphabets on both tapes
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
+            new_symbol_map = aut1.symbol_map.copy()
+
+        elif aut2.number_of_tapes > aut1.number_of_tapes:
+            bigger_aut = aut2
+            # create new configuration tape for a smaller automaton
+            automata.create_new_tape(aut1)
+            # all symbols on configuration tapes
+            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            # extend alphabets on both tapes
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
+            aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
+            new_symbol_map = aut1.symbol_map.copy()
 
         # automata union
         automaton = automata.Automaton(
             automata.union(aut1, aut2),
-            aut1.alphabet,
-            new_symbol_map
+            bigger_aut.alphabet,
+            new_symbol_map,
+            bigger_aut.number_of_tapes,
+            bigger_aut.atomic_propositions
         )
-
+        
         # first order variables must be singletons
         self.force_singletons(automaton)
+        self.force_same_process_vars(automaton)
+
+        automaton.automaton = automata.minimize(automaton)
 
         return automaton
     

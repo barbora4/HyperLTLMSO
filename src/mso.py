@@ -20,8 +20,8 @@ class MSOFormula:
         # create new alphabet
         symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 2
         new_alphabet = automata.create_symbol_map(symbol_length)
-        config = mata_nfa.store()
-        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
 
         # generate all options for new variables
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
@@ -43,7 +43,7 @@ class MSOFormula:
             i_in_I.add_transition(1, prefix + "00", 1)
             i_in_I.add_transition(1, prefix + "01", 1)
 
-        return automata.Automaton(i_in_I, config['alphabet'], symbol_map, number_of_tapes, self.atomic_propositions)
+        return automata.Automaton(i_in_I, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)
     
     def process_set_subseteq_process_set(self, process_set_var_1, process_set_var_2):
         number_of_tapes = len(self.trace_quantifiers) + 1 # one extra tape for configuration an process variables
@@ -54,8 +54,8 @@ class MSOFormula:
         # create new alphabet
         symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 2
         new_alphabet = automata.create_symbol_map(symbol_length)
-        config = mata_nfa.store()
-        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
 
         # generate all options for new variables
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
@@ -75,7 +75,7 @@ class MSOFormula:
             I_subseteq_J.add_transition(0, prefix + "01", 0)
             I_subseteq_J.add_transition(0, prefix + "11", 0)
 
-        return automata.Automaton(I_subseteq_J, config['alphabet'], symbol_map, number_of_tapes, self.atomic_propositions)
+        return automata.Automaton(I_subseteq_J, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)
     
     def process_successor(self, predecessor, successor):
         number_of_tapes = len(self.trace_quantifiers) + 1 # one extra tape for configuration an process variables
@@ -86,8 +86,8 @@ class MSOFormula:
         # create new alphabet
         symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 2
         new_alphabet = automata.create_symbol_map(symbol_length)
-        config = mata_nfa.store()
-        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
 
         # generate all options for new variables
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
@@ -108,12 +108,9 @@ class MSOFormula:
             process_successor.add_transition(1, prefix + "01", 2)
             process_successor.add_transition(2, prefix + "00", 2)
 
-        return automata.Automaton(process_successor, config['alphabet'], symbol_map, number_of_tapes, self.atomic_propositions)
+        return automata.Automaton(process_successor, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)
     
     def singleton(self, aut: automata.Automaton, index: int):
-        config = mata_nfa.store()
-        config['alphabet'] = aut.alphabet
-
         # construct mata automaton for first-order variable on some index
         sing = mata_nfa.Nfa(2)
         sing.make_initial_state(0)
@@ -125,8 +122,8 @@ class MSOFormula:
                 sing.add_transition(1, symbol, 1)
             else:
                 sing.add_transition(0, symbol, 1)
-
-        return automata.Automaton(sing, config['alphabet'], aut.symbol_map, aut.number_of_tapes, aut.atomic_propositions)
+        
+        return automata.Automaton(sing, aut.alphabet, aut.symbol_map, aut.number_of_tapes, aut.atomic_propositions)
 
     def atomic_proposition(self, symbol, trace_var, process_var):
         number_of_tapes = len(self.trace_quantifiers) + 1 # one extra tape for configuration an process variables
@@ -141,8 +138,8 @@ class MSOFormula:
         # create new alphabet
         symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 1
         new_alphabet = automata.create_symbol_map(symbol_length)
-        config = mata_nfa.store()
-        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
 
         # generate all options for new variables
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers) - 1
@@ -173,12 +170,10 @@ class MSOFormula:
             ap.add_transition(0, prefix + "1" + between + "1" + suffix, 1)
             ap.add_transition(1, prefix + "0" + between + "0" + suffix, 1)
             ap.add_transition(1, prefix + "1" + between + "0" + suffix, 1)
-
-        return automata.Automaton(ap, config['alphabet'], symbol_map, number_of_tapes, self.atomic_propositions)
+        
+        return automata.Automaton(ap, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)
     
-    def configuration_variable(self, config_var):
-        config = mata_nfa.store()
-
+    def configuration_variable(self, config_var, next_step=False):
         number_of_tapes = len(self.trace_quantifiers) + 1 # one extra tape for configuration variables
         symbol_map = [copy.deepcopy(self.atomic_propositions) for _ in range(len(self.trace_quantifiers))]
         if "[" not in config_var:
@@ -190,22 +185,35 @@ class MSOFormula:
         symbol_map.append([config_var_name]) # one extra tape for configuration variables
         if process_var != "":
             symbol_map[-1].append(process_var) # add process variable
+
+        # next step in transducer 
+        if next_step:
+            number_of_tapes += 1 # one more configuration tape for transducers
+            symbol_map.append([config_var_name])
+            if process_var != "":
+                symbol_map[-1].append(process_var)
         
         # create new alphabet
         symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 1
         if process_var != "":
             symbol_length += 1
+        if next_step:
+            symbol_length += 1
+            if process_var != "":
+                symbol_length += 1
         new_alphabet = automata.create_symbol_map(symbol_length)
-        config = mata_nfa.store()
-        config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
 
         # generate all options for new variables
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
+        if next_step:
+            new_variables_count += 1
         new_variables = list(itertools.product([0,1], repeat=new_variables_count))
 
         # configuration variable without parameter
         if "[" not in config_var:
-            aut = mata_nfa.Nfa(1, label=config_var)
+            aut = mata_nfa.Nfa(1, label="Symbols: " + str(symbol_map))
             aut.make_initial_state(0)
             aut.make_final_state(0)
 
@@ -220,20 +228,26 @@ class MSOFormula:
         else:
             var_name = config_var[:len(config_var)-3]
             process_name = config_var[-2]
-            aut = mata_nfa.Nfa(2, label=config_var)
+            aut = mata_nfa.Nfa(2, label="Symbols: " + str(symbol_map))
             aut.make_initial_state(0)
             aut.make_final_state(1)
 
-            config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 2
+            if next_step:
+                config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 2) + 1
+            else:
+                config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 2
             for option in new_variables:
                 prefix = ""
                 for i in range(config_var_pos):
                     prefix += str(option[i])
+                # i stays the same for transducers
+                prefix_i_zero = prefix + "0" if next_step else prefix
+                prefix_i_one = prefix + "1" if next_step else prefix
 
-                aut.add_transition(0, prefix + "00", 0)
-                aut.add_transition(0, prefix + "10", 0)
-                aut.add_transition(0, prefix + "11", 1)
-                aut.add_transition(1, prefix + "00", 1)
-                aut.add_transition(1, prefix + "10", 1)
+                aut.add_transition(0, prefix_i_zero + "00", 0)
+                aut.add_transition(0, prefix_i_zero + "10", 0)
+                aut.add_transition(0, prefix_i_one + "11", 1)
+                aut.add_transition(1, prefix_i_zero + "00", 1)
+                aut.add_transition(1, prefix_i_zero + "10", 1)
 
-        return automata.Automaton(aut, config['alphabet'], symbol_map, number_of_tapes, self.atomic_propositions)
+        return automata.Automaton(aut, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)

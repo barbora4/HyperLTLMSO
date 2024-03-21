@@ -14,6 +14,7 @@ class Automaton:
         self.atomic_propositions = atomic_propositions
 
     def plot_automaton(self):
+        mata_nfa.store()["alphabet"] = self.alphabet
         plotting.plot(self.automaton)
 
 class Transducer(Automaton):
@@ -23,44 +24,51 @@ class Transducer(Automaton):
 
 def get_initial_configurations(inputFileName, symbol_map):
     # get FA from .mata
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(len(symbol_map)))
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(len(symbol_map)))
+    mata_nfa.store()["alphabet"] = alphabet
     automaton = parser.from_mata(
         inputFileName, 
-        config['alphabet']
+        alphabet
     )
     automaton.label = "Symbols: " + str(symbol_map)
 
     # symbols are in automaton.get_symbols()
     # they are mapped to numbers, symbol map is in alpha.get_symbol_map()
-    return Automaton(automaton, config['alphabet'], symbol_map, 1, symbol_map)
+    return Automaton(automaton, alphabet, symbol_map, 1, symbol_map)
 
 def union(aut1: Automaton, aut2: Automaton):
+    mata_nfa.store()["alphabet"] = aut1.alphabet
     aut = mata_nfa.union(aut1.automaton, aut2.automaton)
     create_label(aut, aut1.symbol_map)
     return aut
 
 def intersection(aut1: Automaton, aut2: Automaton):
+    mata_nfa.store()["alphabet"] = aut1.alphabet
     aut = mata_nfa.intersection(aut1.automaton, aut2.automaton)
     create_label(aut, aut1.symbol_map)
     return aut
 
 def complement(aut: Automaton):
+    mata_nfa.store()["alphabet"] = aut.alphabet
     result = mata_nfa.complement(aut.automaton, aut.alphabet)
     create_label(result, aut.symbol_map)
     return result
 
 def minimize(aut: Automaton):
+    mata_nfa.store()["alphabet"] = aut.alphabet
     result = mata_nfa.minimize(aut.automaton)
     create_label(result, aut.symbol_map)
     return result
 
 def determinize(aut: Automaton):
-    result = mata_nfa.minimize(aut.automaton)
+    mata_nfa.store()["alphabet"] = aut.alphabet
+    result = mata_nfa.determinize(aut.automaton)
     create_label(result, aut.symbol_map)
     return result
 
-def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map) -> Automaton:
+def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map, second_to_last=False) -> Automaton:
+    tape_index = -1 if not second_to_last else -2
+    
     # add new variables
     # indices of new variables
     mapping = list()
@@ -68,7 +76,7 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map) -> Automaton:
     for symbol in new_symbol_map:
         try:
             # find element in current alphabet on the last tape
-            index = aut.symbol_map[-1].index(symbol)
+            index = aut.symbol_map[tape_index].index(symbol)
             mapping.append(index)
         except:
             # symbol not present in the current alphabet
@@ -79,9 +87,18 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map) -> Automaton:
     new_variables = list(itertools.product([0,1], repeat=new_variables_count))
 
     # create new automaton
-    new_alphabet = create_symbol_map(len(aut.atomic_propositions) * (aut.number_of_tapes-1) + len(new_symbol_map))
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    number_of_symbols = 0
+    for i, map in enumerate(aut.symbol_map):
+        if second_to_last and i == len(aut.symbol_map)-2:
+            number_of_symbols += len(new_symbol_map)
+        elif (not second_to_last) and i == len(aut.symbol_map)-1:
+            number_of_symbols += len(new_symbol_map)
+        else:
+            number_of_symbols += len(map)
+
+    new_alphabet = create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
     new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
     new_aut.make_initial_states(aut.automaton.initial_states)
     new_aut.make_final_states(aut.automaton.final_states)
@@ -89,10 +106,16 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map) -> Automaton:
     # change transitions
     alphabet_map = aut.alphabet.get_symbol_map()
     transitions = aut.automaton.get_trans_as_sequence()
+    if not second_to_last:
+        # change on the last tape
+        prefix_length = sum(len(map) for map in aut.symbol_map[:-1])
+        suffix_length = 0
+    else:
+        prefix_length = sum(len(map) for map in aut.symbol_map[:-2])
+        suffix_length = len(aut.symbol_map[-1])
     for t in transitions:
         # t.source, t.symbol, t.target
         for option in new_variables:
-            prefix_length = len(aut.atomic_propositions) * (aut.number_of_tapes-1)
             current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
             new_symbol = current_symbol[:prefix_length]
             new_variable_index = 0
@@ -103,14 +126,21 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map) -> Automaton:
                     # new variable
                     new_symbol += str(option[new_variable_index])
                     new_variable_index += 1
+            for j in range(suffix_length):
+                new_symbol += current_symbol[prefix_length + (len(mapping) - new_variable_index) + j]
             # add new transition
             new_aut.add_transition(t.source, new_symbol, t.target)
 
-    aut.symbol_map[-1] = new_symbol_map
+    aut.symbol_map[tape_index] = new_symbol_map.copy()
     new_aut.label = "Symbols: " + str(aut.symbol_map)
 
     # change automaton alphabet
-    return Automaton(new_aut, config['alphabet'], aut.symbol_map, aut.number_of_tapes, aut.atomic_propositions)
+    return Automaton(new_aut, alphabet, aut.symbol_map.copy(), aut.number_of_tapes, aut.atomic_propositions)
+
+def create_new_tape(aut: Automaton):
+    aut.number_of_tapes += 1
+    aut.symbol_map.append(list()) # new configuration tape
+    aut.label = "Symbols: " + str(aut.symbol_map)
 
 def create_symbol_map(length: int):
     if length <= 0:
@@ -130,23 +160,29 @@ def create_symbol_map(length: int):
 def create_label(aut: mata_nfa.Nfa, symbol_map):
     aut.label = "Symbols: " + str(symbol_map)
 
-def remove_symbol_on_index(aut: Automaton, index: int):
+def remove_symbol_on_index(aut: Automaton, index: int, second_to_last=False):
+    tape_index = -2 if second_to_last else -1
+
     # create new automaton
     new_alphabet = create_symbol_map(len(aut.atomic_propositions) * (aut.number_of_tapes-1) + len(aut.symbol_map[-1]) - 1)
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
     new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
     new_aut.make_initial_states(aut.automaton.initial_states)
     new_aut.make_final_states(aut.automaton.final_states)
 
     # new symbol map
     new_symbol_map = aut.symbol_map
-    new_symbol_map[-1] = aut.symbol_map[-1][:index] + aut.symbol_map[-1][index+1:] if len(aut.symbol_map[-1]) > index+1 else aut.symbol_map[-1][:index]
+    new_symbol_map[tape_index] = aut.symbol_map[tape_index][:index] + aut.symbol_map[tape_index][index+1:] if len(aut.symbol_map[tape_index]) > index+1 else aut.symbol_map[tape_index][:index]
 
     # change transitions
     alphabet_map = aut.alphabet.get_symbol_map()
     transitions = aut.automaton.get_trans_as_sequence()
-    prefix_length = (aut.number_of_tapes-1) * len(aut.atomic_propositions)
+    if not second_to_last:
+        # change on the last tape
+        prefix_length = sum(len(map) for map in aut.symbol_map[:-1])
+    else:
+        prefix_length = sum(len(map) for map in aut.symbol_map[:-2])
     for t in transitions:
         current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
         # remove character on index
@@ -154,7 +190,7 @@ def remove_symbol_on_index(aut: Automaton, index: int):
         new_aut.add_transition(t.source, new_symbol, t.target)
 
     # change automaton alphabet
-    return Automaton(new_aut, config['alphabet'], new_symbol_map, aut.number_of_tapes, aut.atomic_propositions)
+    return Automaton(new_aut, alphabet, new_symbol_map, aut.number_of_tapes, aut.atomic_propositions)
 
 def create_extended_aut_map(aut_map: list, formula_map: list):
     new_map = aut_map
@@ -195,8 +231,8 @@ def create_multitape_automaton(aut: Automaton, number_of_tapes: int):
     # composition of number_of_tapes automata
     # corresponds to creating number_of_tapes automata with all possible options on other tapes
     # and then performing intersection of these automata
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
     automata_to_intersect = list()
     for i in range(number_of_tapes-1):
         # create alphabet
@@ -220,7 +256,7 @@ def create_multitape_automaton(aut: Automaton, number_of_tapes: int):
                 new_aut.add_transition(t.source, new_symbol, t.target)
         new_aut.label = "Symbols: " + str(new_symbol_map)
 
-        automata_to_intersect.append(Automaton(new_aut, config['alphabet'], new_symbol_map, number_of_tapes, aut.atomic_propositions))
+        automata_to_intersect.append(Automaton(new_aut, alphabet, new_symbol_map, number_of_tapes, aut.atomic_propositions))
 
     # intersect automata in the list
     current_automaton = automata_to_intersect[0]
@@ -269,8 +305,8 @@ def parse_transducer_from_file(filename, symbol_map) -> Transducer:
 
     # create new alphabet
     new_alphabet = create_symbol_map(len(symbol_map)*2)
-    config = mata_nfa.store()
-    config['alphabet'] = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
 
     states = []
     initial_states = []
@@ -307,4 +343,4 @@ def parse_transducer_from_file(filename, symbol_map) -> Transducer:
         symbol = t[1][:int(len(t[1])/2)] + t[1][(int(len(t[1])/2))+1:]
         automaton.add_transition(src, symbol, dst)
 
-    return Transducer(automaton, config['alphabet'], new_symbol_map, number_of_tapes, symbol_map)
+    return Transducer(automaton, alphabet, new_symbol_map, number_of_tapes, symbol_map)
