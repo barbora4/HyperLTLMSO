@@ -346,9 +346,78 @@ def parse_transducer_from_file(filename, symbol_map) -> Transducer:
     return Transducer(automaton, alphabet, new_symbol_map, number_of_tapes, symbol_map)
 
 def create_multitape_transducer(aut: Automaton, number_of_tapes: int):
-    #TODO
-    pass
+    # create new alphabet
+    total_symbols = (number_of_tapes-2)*len(aut.atomic_propositions)
+    new_alphabet = create_symbol_map(total_symbols)
+    transitions = aut.automaton.get_trans_as_sequence()
+    alphabet_map = aut.alphabet.get_symbol_map()
+
+    # new variables for all tapes except 2 and 2 configuration tapes
+    new_variables_count = (number_of_tapes - 4) * len(aut.symbol_map)
+    new_variables = list(itertools.product([0,1], repeat=new_variables_count))
+
+    new_symbol_map = [copy.deepcopy(aut.symbol_map[0]) for _ in range(int(number_of_tapes/2)-1)]
+    new_symbol_map.append(list()) # one empty tape for auxiliary variables
+    new_symbol_map += [copy.deepcopy(aut.symbol_map[1]) for _ in range(int(number_of_tapes/2)-1)]
+    new_symbol_map.append(list()) # second empty tape for auxiliary variables
+    
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+    automata_to_intersect = list()
+
+    for i in range(int((number_of_tapes-2)/2)):
+        # create alphabet
+        new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
+        new_aut.make_initial_states(aut.automaton.initial_states)
+        new_aut.make_final_states(aut.automaton.final_states)
+
+        # same symbols on corresponding tapes, all options on other ones
+        for t in transitions:
+            for option in new_variables:
+                current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+                symbol_before = ""
+                for j in range(i*len(aut.symbol_map[0])):
+                    symbol_before += str(option[j])
+                # first tape of current simple configuration
+                new_symbol = symbol_before + current_symbol[:int(len(current_symbol)/2)]
+                if len(option) > i*len(aut.symbol_map[0])-1:
+                    symbol_after = ""
+                    #TODO end index!
+                    for j in range(i*len(aut.symbol_map[0]), (int((number_of_tapes-2)/2)-1)*len(aut.symbol_map[0]) + i*len(aut.symbol_map[0])):
+                        symbol_after += str(option[j])
+                    new_symbol += symbol_after
+                new_symbol += current_symbol[int(len(current_symbol)/2):]
+                # symbols after
+                if len(option) > (int((number_of_tapes-2)/2)-1)*len(aut.symbol_map[0]) + i*len(aut.symbol_map[0])-1:
+                    symbol_after = ""
+                    for j in range((int((number_of_tapes-2)/2)-1)*len(aut.symbol_map[0]) + i*len(aut.symbol_map[0]), len(option)):
+                        symbol_after += str(option[j])
+                    new_symbol += symbol_after
+
+                new_aut.add_transition(t.source, new_symbol, t.target)
+
+        new_aut.label = "Symbols: " + str(new_symbol_map)
+        automata_to_intersect.append(Automaton(new_aut.deepcopy(), alphabet, new_symbol_map.copy(), number_of_tapes, aut.atomic_propositions))
+
+    # intersect automata in the list
+    current_automaton = automata_to_intersect[0]
+    for i in range(1, len(automata_to_intersect)):
+        current_automaton = Automaton(
+            intersection(current_automaton, automata_to_intersect[i]),
+            current_automaton.alphabet,
+            current_automaton.symbol_map,
+            current_automaton.number_of_tapes,
+            current_automaton.atomic_propositions
+        )
+
+    # minimize the result
+    current_automaton.automaton = minimize(current_automaton)
+
+    return current_automaton
 
 def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, trace_quantifiers: list):
+    # 1) create multitape transducer for the system
+    aut = create_multitape_transducer(aut, (len(trace_quantifiers)+1)*2)
+    
     #TODO
-    pass 
+    return aut 
