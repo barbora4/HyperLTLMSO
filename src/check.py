@@ -51,4 +51,12 @@ if __name__ == "__main__":
 
     # create transducer for local constraints of mso formula
     formula.make_local_constraints_transducer()
-    formula.plot_local_constraints_transducer()
+    #formula.plot_local_constraints_transducer()
+
+    # extended transducer for the system
+    restricted_transducer = automata.restrict_transducer_with_formula(
+       system_transducer,
+       formula.mso_local_constraints_transducer,
+       formula.trace_quantifiers_list
+   )
+    restricted_transducer.plot_automaton()

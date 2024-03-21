@@ -123,9 +123,16 @@ class Formula:
         self.mso_initial_automaton.automaton = automata.minimize(self.mso_initial_automaton)
 
     def make_local_constraints_transducer(self):
-        #TODO convert all constraints
-        self.mso_local_constraints_transducer = self.convert_formula_to_automaton(self.bnf.local_constraints[0])
-        self.mso_local_constraints_transducer.automaton = automata.minimize(self.mso_local_constraints_transducer)
+        if len(self.bnf.local_constraints) != 0:
+            current_automaton = self.convert_formula_to_automaton(self.bnf.local_constraints[0])
+            for i in range(1, len(self.bnf.local_constraints)):
+                if isinstance(current_automaton, tuple):
+                    current_automaton = current_automaton[0]
+                current_automaton = self.convert_and(current_automaton, self.convert_formula_to_automaton(self.bnf.local_constraints[i])),
+            if isinstance(current_automaton, tuple):
+                current_automaton = current_automaton[0]
+            current_automaton.automaton = automata.minimize(current_automaton)
+            self.mso_local_constraints_transducer = current_automaton
 
     def convert_formula_to_automaton(self, formula: Node):
         # return mso automaton for atomic formulae
@@ -280,6 +287,7 @@ class Formula:
         # first order variables must be singletons
         self.force_singletons(automaton)
         self.force_same_process_vars(automaton)
+        self.force_singletons(automaton)
 
         automaton.automaton = automata.minimize(automaton)
 
@@ -296,6 +304,10 @@ class Formula:
             symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            if aut1.number_of_tapes - len(self.trace_quantifiers_list) == 2:
+                # transducer -> extend both configuration tapes
+                aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
+                aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
             new_symbol_map = aut1.symbol_map.copy()
             new_symbol_map[-1] = symbol_map_last_tape
             bigger_aut = aut1
@@ -336,6 +348,7 @@ class Formula:
         )
 
         self.force_same_process_vars(automaton)
+        self.force_singletons(automaton)
         automaton.automaton = automata.minimize(automaton)
 
         return automaton
@@ -388,6 +401,7 @@ class Formula:
         # first order variables must be singletons
         self.force_singletons(automaton)
         self.force_same_process_vars(automaton)
+        self.force_singletons(automaton)
 
         automaton.automaton = automata.minimize(automaton)
 

@@ -344,3 +344,11 @@ def parse_transducer_from_file(filename, symbol_map) -> Transducer:
         automaton.add_transition(src, symbol, dst)
 
     return Transducer(automaton, alphabet, new_symbol_map, number_of_tapes, symbol_map)
+
+def create_multitape_transducer(aut: Automaton, number_of_tapes: int):
+    #TODO
+    pass
+
+def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, trace_quantifiers: list):
+    #TODO
+    pass 
