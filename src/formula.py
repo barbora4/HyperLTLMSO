@@ -98,6 +98,7 @@ class Formula:
         self.mso_converter = mso.MSOFormula(self.trace_quantifiers_list, atomic_propositions)
         self.mso_initial_automaton = None 
         self.mso_local_constraints_transducer = None
+        self.mso_eventuality_constraints_transducer = None
 
     def print_formula(self):
         print("MSO formula: ")
@@ -118,6 +119,9 @@ class Formula:
     def plot_local_constraints_transducer(self):
         self.mso_local_constraints_transducer.plot_automaton()
 
+    def plot_eventuality_constraints_transducer(self):
+        self.mso_eventuality_constraints_transducer.plot_automaton()
+
     def make_initial_automaton(self):
         self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
         self.mso_initial_automaton.automaton = automata.minimize(self.mso_initial_automaton)
@@ -132,7 +136,21 @@ class Formula:
             if isinstance(current_automaton, tuple):
                 current_automaton = current_automaton[0]
             current_automaton.automaton = automata.minimize(current_automaton)
-            self.mso_local_constraints_transducer = current_automaton
+            self.mso_local_constraints_transducer = automata.add_transducer_next_symbols(current_automaton)
+
+    def make_eventuality_constraints_transducer(self):
+        if len(self.bnf.eventuality_constraints) != 0:
+            current_automaton = self.convert_formula_to_automaton(self.bnf.eventuality_constraints[0])
+            for i in range(1, len(self.bnf.eventuality_constraints)):
+                if isinstance(current_automaton, tuple):
+                    current_automaton = current_automaton[0]
+                current_automaton = self.convert_and(current_automaton, self.convert_formula_to_automaton(self.bnf.eventuality_constraints[i])),
+            if isinstance(current_automaton, tuple):
+                current_automaton = current_automaton[0]
+            current_automaton.automaton = automata.minimize(current_automaton)
+            self.mso_eventuality_constraints_transducer = automata.add_transducer_next_symbols(current_automaton)
+        else:
+            self.mso_eventuality_constraints_transducer = self.mso_local_constraints_transducer
 
     def convert_formula_to_automaton(self, formula: Node):
         # return mso automaton for atomic formulae
@@ -342,7 +360,7 @@ class Formula:
         automaton = automata.Automaton(
             automata.intersection(aut1, aut2),
             bigger_aut.alphabet,
-            new_symbol_map,
+            new_symbol_map.copy(),
             bigger_aut.number_of_tapes,
             bigger_aut.atomic_propositions.copy() 
         )
@@ -359,6 +377,10 @@ class Formula:
             symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
+            if aut1.number_of_tapes - len(self.trace_quantifiers_list) == 2:
+                # transducer -> extend both configuration tapes
+                aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
+                aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
             new_symbol_map = aut1.symbol_map.copy()
             new_symbol_map[-1] = symbol_map_last_tape
             bigger_aut = aut1
@@ -393,7 +415,7 @@ class Formula:
         automaton = automata.Automaton(
             automata.union(aut1, aut2),
             bigger_aut.alphabet,
-            new_symbol_map,
+            new_symbol_map.copy(),
             bigger_aut.number_of_tapes,
             bigger_aut.atomic_propositions
         )
@@ -600,7 +622,7 @@ class BnfFormula:
                 root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND, 2)
                 root.left.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.NEG, 1)
                 root.left.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IMPLIES, 2)
+                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
                 root.left.right.create_left_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, y_variable, 0)
                 root.left.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)

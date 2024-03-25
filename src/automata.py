@@ -131,11 +131,12 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map, second_to_last=
             # add new transition
             new_aut.add_transition(t.source, new_symbol, t.target)
 
-    aut.symbol_map[tape_index] = new_symbol_map.copy()
+    total_new_symbol_map = aut.symbol_map.copy()
+    total_new_symbol_map[tape_index] = new_symbol_map.copy()
     new_aut.label = "Symbols: " + str(aut.symbol_map)
 
     # change automaton alphabet
-    return Automaton(new_aut, alphabet, aut.symbol_map.copy(), aut.number_of_tapes, aut.atomic_propositions)
+    return Automaton(new_aut, alphabet, total_new_symbol_map, aut.number_of_tapes, aut.atomic_propositions)
 
 def create_new_tape(aut: Automaton):
     aut.number_of_tapes += 1
@@ -382,7 +383,6 @@ def create_multitape_transducer(aut: Automaton, number_of_tapes: int):
                 new_symbol = symbol_before + current_symbol[:int(len(current_symbol)/2)]
                 if len(option) > i*len(aut.symbol_map[0])-1:
                     symbol_after = ""
-                    #TODO end index!
                     for j in range(i*len(aut.symbol_map[0]), (int((number_of_tapes-2)/2)-1)*len(aut.symbol_map[0]) + i*len(aut.symbol_map[0])):
                         symbol_after += str(option[j])
                     new_symbol += symbol_after
@@ -423,8 +423,58 @@ def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, tra
     symbol_map_last_tape = formula_aut.symbol_map[-1]
     aut = extend_transducer_alphabet_on_configuration_tapes(aut, symbol_map_last_tape)
 
-    #TODO
+    # intersection
+    aut.automaton = minimize(aut)
+    formula_aut.automaton = minimize(aut)
+    mata_nfa.store()["alphabet"] = formula_aut.alphabet
+    result = Automaton(
+        intersection(aut, formula_aut),
+        formula_aut.alphabet,
+        formula_aut.symbol_map,
+        formula_aut.number_of_tapes,
+        aut.atomic_propositions
+    )
+
     return aut 
+
+def add_transducer_next_symbols(automaton: Automaton):
+    # add new variables
+    new_variables_count = (automaton.number_of_tapes-2)*len(automaton.atomic_propositions)
+    new_variables = list(itertools.product([0,1], repeat=new_variables_count))
+
+    # new alphabet
+    number_of_symbols = (automaton.number_of_tapes-2)*len(automaton.atomic_propositions)*2 + 2*len(automaton.symbol_map[-1])
+    new_alphabet = create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+    new_aut = mata_nfa.Nfa(automaton.automaton.num_of_states())
+    new_aut.make_initial_states(automaton.automaton.initial_states)
+    new_aut.make_final_states(automaton.automaton.final_states)
+
+    alphabet_map = automaton.alphabet.get_symbol_map()
+    transitions = automaton.automaton.get_trans_as_sequence()
+
+    # change transitions
+    for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        for option in new_variables:
+            new_symbol = current_symbol[:int(number_of_symbols/2)]
+            for j in range(new_variables_count):
+                new_symbol += str(option[j])
+            for j in range(int(number_of_symbols/2), len(current_symbol)):
+                new_symbol += str(current_symbol[j])
+            new_aut.add_transition(t.source, new_symbol, t.target)
+
+    # new symbol map
+    new_symbol_map = automaton.symbol_map[:automaton.number_of_tapes-1]
+    for i in range(automaton.number_of_tapes-2):
+        new_symbol_map.append(automaton.symbol_map[0])
+    new_symbol_map.append(automaton.symbol_map[-1])
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+
+    number_of_tapes = (automaton.number_of_tapes-1)*2
+    return Automaton(new_aut, alphabet, new_symbol_map, number_of_tapes, automaton.atomic_propositions)
+
 
 def extend_transducer_alphabet_on_configuration_tapes(automaton: Automaton, symbol_map):
     # add new variables
@@ -445,8 +495,8 @@ def extend_transducer_alphabet_on_configuration_tapes(automaton: Automaton, symb
     # change transitions
     original_symbols_length = (automaton.number_of_tapes-2) * len(automaton.atomic_propositions)
     for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
         for option in new_variables:
-            current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
             new_symbol = current_symbol[:int(original_symbols_length/2)]
             for j in range(int(len(option)/2)):
                 new_symbol += str(option[j])

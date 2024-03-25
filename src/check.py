@@ -59,4 +59,8 @@ if __name__ == "__main__":
        formula.mso_local_constraints_transducer,
        formula.trace_quantifiers_list
    )
-    restricted_transducer.plot_automaton()
+    #restricted_transducer.plot_automaton()
+
+    # transducer for eventuality constraints
+    formula.make_eventuality_constraints_transducer()
+    #formula.plot_eventuality_constraints_transducer()
