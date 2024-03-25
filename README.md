@@ -1,7 +1,7 @@
 # HyperLTL(MSO) model checking
 
 ## How to run the program
-To run the program use the following command:
+To run the program use the following command in the ```src``` directory:
 
 ``` ./check.py --formula=<path_to_formula> --initial-config=<path_to_initial_automaton> --symbol_mapping=<path_to_list_of_atomic_propositions> --system_transducer=<path_to_transducer_with_system_transitions>```
 
@@ -36,6 +36,6 @@ The next figure contains the extended system transducer with the second part of 
 
 <img src="figures/token_passing_trans_extended.png" width="100%"></img>
 
-To test this example, run 
+To test this example, run
 
 ```./check.py --formula=../examples/formula1.txt --initial_config=../examples/token_passing_initial_conf.mata --symbol_mapping="../examples/token_passing_mapping.txt" --system_transducer="../examples/token_passing_system.txt"```
