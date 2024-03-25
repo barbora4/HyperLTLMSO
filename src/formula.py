@@ -150,7 +150,7 @@ class Formula:
             current_automaton.automaton = automata.minimize(current_automaton)
             self.mso_eventuality_constraints_transducer = automata.add_transducer_next_symbols(current_automaton)
         else:
-            self.mso_eventuality_constraints_transducer = self.mso_local_constraints_transducer
+            self.mso_eventuality_constraints_transducer = self.mso_local_constraints_transducer 
 
     def convert_formula_to_automaton(self, formula: Node):
         # return mso automaton for atomic formulae
@@ -571,17 +571,17 @@ class BnfFormula:
                 raise ValueError("More than one free variable in LTL subformula")
 
             # create new configuration variable(s)
-            new_variable = self.create_new_variable(free_variable, is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
+            if free_variable != "":
+                new_variable = self.create_new_variable(free_variable, is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
+            else:
+                new_variable = self.create_new_variable("i", is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
+                free_variable = "i"
 
             # create local constraints
             if node.data in [TreeOperators.ALWAYS.value, TreeOperators.EVENTUALLY.value]: 
-                if free_variable != "":
-                    root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
-                    root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
-                    tmp = root.left
-                else:
-                    root = Node(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
-                    tmp = root
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
+                root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
+                tmp = root.left
                 tmp.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
                 tmp.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND if node.data == TreeOperators.ALWAYS.value else TreeOperators.OR, 2)
                 tmp.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)

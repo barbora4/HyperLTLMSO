@@ -217,17 +217,18 @@ class MSOFormula:
             aut.make_initial_state(0)
             aut.make_final_state(0)
 
-            config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 1
+            if next_step: 
+                config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 2)
+            else:
+                config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 1
             for option in new_variables:
                 prefix = ""
-                for i in range(config_var_pos):
+                for i in range(len(option)):
                     prefix += str(option[i])
                 aut.add_transition(0, prefix + "1", 0)
 
         # parameterized configuration variable
         else:
-            var_name = config_var[:len(config_var)-3]
-            process_name = config_var[-2]
             aut = mata_nfa.Nfa(2, label="Symbols: " + str(symbol_map))
             aut.make_initial_state(0)
             aut.make_final_state(1)
