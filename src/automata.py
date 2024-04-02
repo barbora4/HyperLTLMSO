@@ -3,7 +3,6 @@ from libmata import parser, alphabets, plotting
 import itertools
 import re
 import copy
-import formula
 
 class Automaton:
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):
@@ -22,12 +21,12 @@ class Transducer(Automaton):
         Automaton.__init__(self, automaton, alphabet, symbol_map, number_of_tapes, atomic_propositions)
         self.tapes_half = number_of_tapes / 2
 
-def get_initial_configurations(inputFileName, symbol_map):
+def get_initial_configurations(input_file_name, symbol_map):
     # get FA from .mata
     alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(len(symbol_map)))
     mata_nfa.store()["alphabet"] = alphabet
     automaton = parser.from_mata(
-        inputFileName, 
+        input_file_name, 
         alphabet
     )
     automaton.label = "Symbols: " + str(symbol_map)
@@ -517,3 +516,35 @@ def extend_transducer_alphabet_on_configuration_tapes(automaton: Automaton, symb
     new_aut.label = "Symbols: " + str(new_symbol_map)
 
     return Automaton(new_aut, alphabet, new_symbol_map, automaton.number_of_tapes, automaton.atomic_propositions)
+
+def remove_configuration_tape(aut: Automaton):
+    # create new automaton
+    new_symbol_map = aut.symbol_map.copy()[:-1]
+    number_of_symbols = sum(len(map) for map in new_symbol_map)
+    new_alphabet = create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+
+    new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
+    new_aut.make_initial_states(aut.automaton.initial_states)
+    new_aut.make_final_states(aut.automaton.final_states)
+
+    # change transitions
+    alphabet_map = aut.alphabet.get_symbol_map()
+    transitions = aut.automaton.get_trans_as_sequence()
+    for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        new_symbol = current_symbol[:number_of_symbols]
+        new_aut.add_transition(t.source, new_symbol, t.target)
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+
+    result = Automaton(
+        new_aut,
+        alphabet,
+        new_symbol_map,
+        aut.number_of_tapes - 1,
+        aut.atomic_propositions
+    )
+    result.automaton = minimize(result)
+
+    return result

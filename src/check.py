@@ -3,8 +3,7 @@
 import parse
 from formula import Formula
 import automata
-import mso
-import libmata 
+import invariant_conditions
 
 if __name__ == "__main__":
     grammar_parser = parse.create_parser("grammar.txt")
@@ -32,7 +31,6 @@ if __name__ == "__main__":
 
     # create automaton for initial mso formula
     formula.make_initial_automaton()
-    #formula.plot_mso_initial_automaton()
 
     # extended initial configurations with MSO formula
     restricted_initial_conf = automata.restrict_automaton_with_formula(
@@ -40,18 +38,15 @@ if __name__ == "__main__":
         formula.mso_initial_automaton,
         formula.trace_quantifiers_list
     )
-    #restricted_initial_conf.plot_automaton()
 
     # parse system transducer from file
     system_transducer = automata.parse_transducer_from_file(
         args["system_transducer"],
         symbol_map 
     )
-    #system_transducer.plot_automaton()
 
     # create transducer for local constraints of mso formula
     formula.make_local_constraints_transducer()
-    #formula.plot_local_constraints_transducer()
 
     # extended transducer for the system
     restricted_transducer = automata.restrict_transducer_with_formula(
@@ -59,8 +54,23 @@ if __name__ == "__main__":
        formula.mso_local_constraints_transducer,
        formula.trace_quantifiers_list
    )
-    restricted_transducer.plot_automaton()
 
     # transducer for eventuality constraints
     formula.make_eventuality_constraints_transducer()
-    #formula.plot_eventuality_constraints_transducer()
+
+    # generate and check conditions for the formula
+    # invariant
+    invariant = invariant_conditions.get_invariant_from_file(
+        args["invariant"],
+        restricted_initial_conf.symbol_map.copy()
+    )
+
+    # check if I subseteq projection(A)
+    initial_condition_holds = invariant_conditions.check_initial_invariant_condition(
+        restricted_initial_conf,
+        invariant
+    )
+    if initial_condition_holds:
+        print("Initial condition holds")
+    else:
+        print("Initial condition does not hold")

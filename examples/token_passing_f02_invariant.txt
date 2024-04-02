@@ -1,0 +1,8 @@
+@NFA-explicit
+%States-enum p q
+%Alphabet-auto
+%Initial p
+%Final q
+p 01010 p
+p 10101 q
+q 01010 q
