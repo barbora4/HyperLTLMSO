@@ -114,9 +114,9 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map, second_to_last=
         suffix_length = len(aut.symbol_map[-1])
     for t in transitions:
         # t.source, t.symbol, t.target
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        new_symbol = current_symbol[:prefix_length]
         for option in new_variables:
-            current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
-            new_symbol = current_symbol[:prefix_length]
             new_variable_index = 0
             for position in mapping:
                 if position != None:
@@ -296,15 +296,20 @@ def restrict_automaton_with_formula(aut: Automaton, formula_aut: Automaton, trac
 
     return result 
 
-def parse_transducer_from_file(filename, symbol_map) -> Transducer:
+def parse_transducer_from_file(filename, symbol_map, with_configuration=False) -> Transducer:
     with open(filename) as f:
         input = f.read().splitlines()
 
-    number_of_tapes = 2
-    new_symbol_map = [copy.deepcopy(symbol_map) for _ in range(2)]
+    if not with_configuration:
+        number_of_tapes = 2
+        new_symbol_map = [copy.deepcopy(symbol_map) for _ in range(2)]
+        new_alphabet = create_symbol_map(len(symbol_map)*2)
+    else:
+        number_of_tapes = len(symbol_map)
+        new_symbol_map = symbol_map.copy()
+        new_alphabet = create_symbol_map(sum(len(map) for map in symbol_map))
 
     # create new alphabet
-    new_alphabet = create_symbol_map(len(symbol_map)*2)
     alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
     mata_nfa.store()["alphabet"] = alphabet
 

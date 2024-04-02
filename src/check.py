@@ -64,6 +64,10 @@ if __name__ == "__main__":
         args["invariant"],
         restricted_initial_conf.symbol_map.copy()
     )
+    relation = invariant_conditions.get_relation_from_file(
+        args["relation"],
+        restricted_transducer.symbol_map.copy()
+    )
 
     # check if I subseteq projection(A)
     initial_condition_holds = invariant_conditions.check_initial_invariant_condition(
@@ -74,3 +78,15 @@ if __name__ == "__main__":
         print("Initial condition holds")
     else:
         print("Initial condition does not hold")
+
+    # check of second condition for invariant and relation
+    transition_condition_holds = invariant_conditions.check_transition_invariant_condition(
+        extended_transducer = restricted_transducer,
+        accepting_trans = formula.mso_eventuality_constraints_transducer,
+        invariant = invariant,
+        relation = relation
+    )
+    if transition_condition_holds:
+        print("Transition condition holds")
+    else:
+        print("Transition condition does not hold")
