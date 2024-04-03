@@ -38,4 +38,4 @@ The next figure contains the extended system transducer with the second part of 
 
 To test this example, run
 
-```./check.py --formula=../examples/formula1.txt --initial_config=../examples/token_passing_initial_conf.mata --symbol_mapping="../examples/token_passing_mapping.txt" --system_transducer="../examples/token_passing_system.txt"```
+```./check.py --formula=../examples/token_passing_f02.txt --initial_config=../examples/token_passing_initial_conf.mata --symbol_mapping=../examples/token_passing_mapping.txt --system_transducer=../examples/token_passing_system.txt --invariant=../examples/token_passing_f02_invariant.txt --relation=../examples/token_passing_f02_relation.txt```
