@@ -307,34 +307,38 @@ def check_transition_invariant_condition(
         )
         transducers_to_intersect.append(new_transducer)
     # intersect the transducers
-    left_side_transducer = transducers_to_intersect[0]
-    for i in range(1, len(transducers_to_intersect)):
-        left_side_transducer = automata.Automaton(
-            automata.intersection(left_side_transducer, transducers_to_intersect[i]),
+    if len(transducers_to_intersect) > 0:
+        left_side_transducer = transducers_to_intersect[0]
+        for i in range(1, len(transducers_to_intersect)):
+            left_side_transducer = automata.Automaton(
+                automata.intersection(left_side_transducer, transducers_to_intersect[i]),
+                left_side_transducer.alphabet,
+                left_side_transducer.symbol_map.copy(),
+                left_side_transducer.number_of_tapes,
+                left_side_transducer.atomic_propositions
+            )
+        # minimize the result
+        left_side_transducer.automaton = automata.minimize(left_side_transducer)
+
+        # 5) left_side_transducer => transducer_with_relation
+        # union of the negation of left_side_transducer and transducer_with_relation
+        left_side_transducer_neg = automata.Automaton(
+            automata.complement(left_side_transducer),
             left_side_transducer.alphabet,
             left_side_transducer.symbol_map.copy(),
             left_side_transducer.number_of_tapes,
             left_side_transducer.atomic_propositions
         )
-    # minimize the result
-    left_side_transducer.automaton = automata.minimize(left_side_transducer)
-
-    # 5) left_side_transducer => transducer_with_relation
-    # union of the negation of left_side_transducer and transducer_with_relation
-    left_side_transducer_neg = automata.Automaton(
-        automata.complement(left_side_transducer),
-        left_side_transducer.alphabet,
-        left_side_transducer.symbol_map.copy(),
-        left_side_transducer.number_of_tapes,
-        left_side_transducer.atomic_propositions
-    )
-    whole_transducer_without_quantifiers = automata.Automaton(
-        automata.union(left_side_transducer_neg, transducer_with_relation),
-        left_side_transducer_neg.alphabet,
-        left_side_transducer_neg.symbol_map.copy(),
-        left_side_transducer_neg.number_of_tapes,
-        left_side_transducer_neg.atomic_propositions
-    )
+        whole_transducer_without_quantifiers = automata.Automaton(
+            automata.union(left_side_transducer_neg, transducer_with_relation),
+            left_side_transducer_neg.alphabet,
+            left_side_transducer_neg.symbol_map.copy(),
+            left_side_transducer_neg.number_of_tapes,
+            left_side_transducer_neg.atomic_propositions
+        )
+    else:
+        # no universal quantifiers -> right side of the implication always holds
+        whole_transducer_without_quantifiers = transducer_with_relation
 
     # 6) quantifier projection
     # check if the result is not empty, if yes, return False
