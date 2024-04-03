@@ -19,7 +19,6 @@ if __name__ == "__main__":
         symbol_map
     )
     atomic_propositions = initial_configurations.atomic_propositions
-    #initial_configurations.plot_automaton()
 
     # parse formula into tree
     with open(args["formula"]) as f:
@@ -84,7 +83,9 @@ if __name__ == "__main__":
         extended_transducer = restricted_transducer,
         accepting_trans = formula.mso_eventuality_constraints_transducer,
         invariant = invariant,
-        relation = relation
+        relation = relation,
+        trace_quantifiers = formula.trace_quantifiers_list,
+        system_transducer = system_transducer
     )
     if transition_condition_holds:
         print("Transition condition holds")

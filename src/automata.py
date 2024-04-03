@@ -115,8 +115,8 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map, second_to_last=
     for t in transitions:
         # t.source, t.symbol, t.target
         current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
-        new_symbol = current_symbol[:prefix_length]
         for option in new_variables:
+            new_symbol = current_symbol[:prefix_length]
             new_variable_index = 0
             for position in mapping:
                 if position != None:
@@ -264,7 +264,7 @@ def create_multitape_automaton(aut: Automaton, number_of_tapes: int):
         current_automaton = Automaton(
             intersection(current_automaton, automata_to_intersect[i]),
             current_automaton.alphabet,
-            current_automaton.symbol_map,
+            current_automaton.symbol_map.copy(),
             current_automaton.number_of_tapes,
             current_automaton.atomic_propositions
         )
@@ -282,13 +282,13 @@ def restrict_automaton_with_formula(aut: Automaton, formula_aut: Automaton, trac
     # extend last tape alphabet in initial automaton
     symbol_map_last_tape = formula_aut.symbol_map[-1]
     aut = extend_alphabet_on_last_tape(aut, symbol_map_last_tape)
-    
+
     aut.automaton = minimize(aut)
     formula_aut.automaton = minimize(formula_aut)
     result = Automaton(
         intersection(aut, formula_aut),
         formula_aut.alphabet,
-        formula_aut.symbol_map,
+        formula_aut.symbol_map.copy(),
         formula_aut.number_of_tapes,
         aut.atomic_propositions
     )

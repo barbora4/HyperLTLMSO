@@ -1,1 +1,1 @@
-forall t1. forall t2. exists i. t_t1[i] & t_t2[i]
+forall t1. exists t2. exists i. G (t_t1[i] & t_t2[i])
