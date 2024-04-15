@@ -2,9 +2,9 @@
 
 from pysat.solvers import Solver
 import itertools
+import automata
 
 GLOBAL_VARIABLE_COUNT = 0
-solver = None
 
 class Invariant:
     def __init__(self, num_states):
@@ -14,10 +14,10 @@ class Invariant:
 
 def generate_condition_for_determinism(
         used_alphabet: list, 
-        inv: Invariant
+        inv: Invariant,
+        solver: Solver
     ):
     global GLOBAL_VARIABLE_COUNT
-    global solver 
 
     if inv.num_states < 2:
         return 
@@ -42,10 +42,10 @@ def generate_condition_for_determinism(
 
 def generate_condition_for_completeness(
         used_alphabet: list,
-        inv: Invariant
+        inv: Invariant,
+        solver: Solver
     ):
     global GLOBAL_VARIABLE_COUNT
-    global solver
 
     for index_src in inv.trans_variables.copy()[::inv.num_states*len(used_alphabet)]: 
         # every new source state
@@ -57,10 +57,10 @@ def generate_condition_for_completeness(
 
 def generate_condition_for_accepting_states(
         used_alphabet: list,
-        inv: Invariant
+        inv: Invariant,
+        solver: Solver
     ):
     global GLOBAL_VARIABLE_COUNT
-    global solver
 
     inv.state_variables = list(range(1+GLOBAL_VARIABLE_COUNT, 1+GLOBAL_VARIABLE_COUNT+inv.num_states))
     GLOBAL_VARIABLE_COUNT += len(inv.state_variables)
@@ -71,49 +71,41 @@ def generate_condition_for_accepting_states(
 
 def find_solution(used_alphabet: list, max_k: int):
     global GLOBAL_VARIABLE_COUNT
-    global solver
     
     # increment number of states
     for k_aut in range(1, max_k+1):
-        for k_trans in range(1, max_k+1):
-            solver = Solver(name='g3')
-            GLOBAL_VARIABLE_COUNT = 0
-            A = Invariant(k_aut)
-            T = Invariant(k_aut)
+        GLOBAL_VARIABLE_COUNT = 0
+        solver_aut = Solver(name='g3')
+        A = Invariant(k_aut)
 
-            # generate conditions for invariant
-            # 1) determinism
-            generate_condition_for_determinism(used_alphabet, A)
-            # 2) completeness
-            generate_condition_for_completeness(used_alphabet, A)
-            # 3) at least one accepting state
-            generate_condition_for_accepting_states(used_alphabet, A)
-            # 4) symmetry breaking
+        # generate conditions for invariant
+        # 1) determinism
+        generate_condition_for_determinism(used_alphabet, A, solver_aut)
+        # 2) completeness
+        generate_condition_for_completeness(used_alphabet, A, solver_aut)
+        # 3) at least one accepting state
+        generate_condition_for_accepting_states(used_alphabet, A, solver_aut)
+        # 4) symmetry breaking
+        # TODO
+
+        # solve
+        solver_aut.solve()
+        for model in solver_aut.enum_models():
+            print(model)
+            # convert to automaton instance
             # TODO
-
-            # generate conditions for transducer
-            # 1) determinism
-            generate_condition_for_determinism(used_alphabet, T)
-            # 2) completeness
-            generate_condition_for_completeness(used_alphabet, T)
-            # 3) at least one accepting state
-            generate_condition_for_accepting_states()
-            # 4) symmetry breaking
+            # check conditions
             # TODO
-            # 5) irreflexivity
+            # if conditions hold, generate transducer
             # TODO
+            pass
 
-            # solve (go through models)
-            solver.solve()
-            for model in solver.enum_models():
-                # convert to Automaton instance
-                # TODO
-                # check
-                # TODO
-                pass 
+        solver_aut.delete()
 
-            solver.delete()
 
+def convert_model_to_automaton(model: list) -> automata.Automaton:
+    # TODO
+    pass
 
 if __name__ == "__main__":
     # SAT solver test
