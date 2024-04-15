@@ -4,6 +4,7 @@ import parse
 from formula import Formula
 import automata
 import invariant_conditions
+import sat_solver
 
 if __name__ == "__main__":
     grammar_parser = parse.create_parser("grammar.txt")
@@ -91,3 +92,8 @@ if __name__ == "__main__":
         print("Transition condition holds")
     else:
         print("Transition condition does not hold")
+
+    # conditions for SAT solver
+    # get only used symbols (not the whole alphabet)
+    #used_alphabet = restricted_transducer.get_used_symbols()
+    #sat_solver.find_solution(used_alphabet, max_k = 3) # TODO

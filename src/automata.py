@@ -16,6 +16,21 @@ class Automaton:
         mata_nfa.store()["alphabet"] = self.alphabet
         plotting.plot(self.automaton)
 
+    def get_used_symbols(self):
+        # get only used symbols (not the whole alphabet)
+        used_symbols = set()
+
+        alphabet_map = self.alphabet.get_symbol_map()
+        transitions = self.automaton.get_trans_as_sequence()
+
+        for t in transitions:
+            # t.source, t.symbol, t.target
+            current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+            used_symbols.add(current_symbol)
+        
+        return list(used_symbols)
+
+
 class Transducer(Automaton):
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):
         Automaton.__init__(self, automaton, alphabet, symbol_map, number_of_tapes, atomic_propositions)
