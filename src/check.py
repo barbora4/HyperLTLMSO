@@ -5,8 +5,15 @@ from formula import Formula
 import automata
 import invariant_conditions
 import sat_solver
+import libmata.nfa.nfa as mata_nfa
+from libmata import parser, alphabets, plotting
+import time 
 
 if __name__ == "__main__":
+    start = time.time()
+    
+    MAX_NUM_STATES = 3
+    
     grammar_parser = parse.create_parser("grammar.txt")
     args = parse.parse_command_line_arguments()
 
@@ -95,5 +102,21 @@ if __name__ == "__main__":
 
     # conditions for SAT solver
     # get only used symbols (not the whole alphabet)
-    #used_alphabet = restricted_transducer.get_used_symbols()
-    #sat_solver.find_solution(used_alphabet, max_k = 3) # TODO
+    used_alphabet = restricted_transducer.get_used_symbols()
+    A, T = sat_solver.find_solution(
+        max_k = MAX_NUM_STATES, # TODO input parameter
+        restricted_initial_conf = restricted_initial_conf,
+        restricted_transducer = restricted_transducer,
+        original_transducer = system_transducer,
+        accepting_transitions = formula.mso_eventuality_constraints_transducer,
+        trace_quantifiers = formula.trace_quantifiers_list
+    ) 
+
+    if (A,T) == (None, None):
+        print("Solution was not found for", MAX_NUM_STATES)
+    else:
+        end = time.time()
+        print("Solution was found in", end-start, "seconds")
+        # save the advice bits
+        A.automaton.to_dot_file(output_file="A.dot", output_format="pdf")
+        T.automaton.to_dot_file(output_file="T.dot", output_format="pdf")

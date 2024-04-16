@@ -362,3 +362,157 @@ def check_transition_invariant_condition(
         return True
     else:
         return False 
+    
+def check_invariant_inductiveness(
+        invariant: automata.Automaton,
+        extended_transducer: automata.Automaton
+    ) -> bool:
+
+    # transducer for x in A
+    first = extend_automaton_to_transducer(invariant, 0)
+    # transducer for y in A
+    second = extend_automaton_to_transducer(invariant, 1)
+
+    # intersection of extended_transducer and first
+    intersection = automata.Automaton(
+        automata.intersection(extended_transducer, first),
+        extended_transducer.alphabet,
+        extended_transducer.symbol_map.copy(),
+        extended_transducer.number_of_tapes,
+        extended_transducer.atomic_propositions
+    ) 
+
+    # language inclusion check
+    is_included = mata_nfa.is_included(
+        lhs = intersection.automaton,
+        rhs = second.automaton,
+        alphabet = extended_transducer.alphabet
+    )
+    if is_included == True:
+        return True
+    else:
+        return False
+    
+def get_transducer_post(
+        automaton: automata.Automaton,
+        transducer: automata.Automaton,
+    ) -> automata.Automaton:
+    
+    # cylindify automaton to transducer
+    cylindrified_automaton = extend_automaton_to_transducer(automaton, 0)
+
+    # intersection with transducer
+    intersection = automata.Automaton(
+        automata.intersection(transducer, cylindrified_automaton),
+        transducer.alphabet,
+        transducer.symbol_map.copy(),
+        transducer.number_of_tapes,
+        transducer.atomic_propositions
+    )
+
+    # get automaton from the second tape of the transducer 
+    post = remove_first_tape_of_transducer(intersection)
+
+    return post
+
+def remove_first_tape_of_transducer(transducer: automata.Automaton) -> automata.Automaton:
+    # new symbol map
+    new_symbol_map = [map for (i, map) in enumerate(transducer.symbol_map) if i < int(len(transducer.symbol_map)/2)]
+
+    # new alphabet
+    number_of_symbols = sum(len(map) for map in new_symbol_map)
+    new_alphabet = automata.create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+
+    # new automaton
+    new_aut = mata_nfa.Nfa(transducer.automaton.num_of_states())
+    new_aut.make_initial_states(transducer.automaton.initial_states)
+    new_aut.make_final_states(transducer.automaton.final_states)
+
+    # change transitions
+    alphabet_map = transducer.alphabet.get_symbol_map()
+    transitions = transducer.automaton.get_trans_as_sequence()
+    for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        new_symbol = current_symbol[len(number_of_symbols):]
+        new_aut.add_transition(t.source, new_symbol, t.target)
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+    
+    result = automata.Automaton(
+        new_aut,
+        alphabet,
+        new_symbol_map,
+        int(transducer.number_of_tapes / 2),
+        transducer.atomic_propositions
+    )
+    result.automaton = automata.minimize(result)
+
+    return result 
+
+def is_strict_preorder(transducer: automata.Automaton) -> bool:
+    # irreflexivity
+    is_irreflexive = is_irreflexive(transducer)
+    if not is_irreflexive:
+        return False
+
+    # transitivity
+    is_transitive = is_transitive(transducer)
+    return is_transitive 
+
+def is_irreflexive(transducer: automata.Automaton) -> bool:
+    # identity
+    identity = create_identity_transducer(transducer.symbol_map.copy())
+
+    # intersection
+    intersection = automata.Automaton(
+        automata.intersection(transducer, identity),
+        transducer.alphabet,
+        transducer.symbol_map.copy(),
+        transducer.number_of_tapes,
+        transducer.atomic_propositions
+    )
+
+    # emptiness check
+    is_empty = intersection.automaton.is_lang_empty()
+    if is_empty == True:
+        return True
+    else:
+        return False
+
+def is_transitive(transducer: automata.Automaton) -> bool:
+    # TODO
+    return 
+
+def create_identity_transducer(symbol_map: list) -> automata.Automaton:
+    # new symbol map
+    new_symbol_map = symbol_map.copy() 
+
+    # new alphabet
+    number_of_symbols = sum(len(map) for map in new_symbol_map)
+    new_alphabet = automata.create_symbol_map(number_of_symbols)
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+
+    # new automaton
+    new_aut = mata_nfa.Nfa(1)
+    new_aut.make_initial_states(0)
+    new_aut.make_final_states(0)
+
+    # add transitions
+    alphabet_map = new_aut.alphabet.get_symbol_map()
+    all_symbols = alphabet_map.keys()
+    for symbol in all_symbols:
+        if symbol[:int(len(symbol)/2)] == symbol[int(len(symbol)/2):]:
+            new_aut.add_transition(0, symbol, 0)
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+    
+    result = automata.Automaton(
+        new_aut,
+        alphabet,
+        new_symbol_map,
+        len(symbol_map),
+        symbol_map[0]
+    )
+
+    return result 

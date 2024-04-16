@@ -26,10 +26,13 @@ class Automaton:
         for t in transitions:
             # t.source, t.symbol, t.target
             current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
-            used_symbols.add(current_symbol)
+            used_symbols.add(str(current_symbol))
         
         return list(used_symbols)
-
+    
+    def get_all_symbols(self):
+        alphabet_map = self.alphabet.get_symbol_map()
+        return list(alphabet_map.keys())
 
 class Transducer(Automaton):
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):
