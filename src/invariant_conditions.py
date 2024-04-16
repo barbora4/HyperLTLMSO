@@ -450,14 +450,17 @@ def remove_first_tape_of_transducer(transducer: automata.Automaton) -> automata.
 
     return result 
 
-def is_strict_preorder(transducer: automata.Automaton) -> bool:
+def is_strict_preorder(
+        transducer: automata.Automaton,
+        invariant: automata.Automaton
+    ) -> bool:
     # irreflexivity
     is_irreflexive = is_irreflexive(transducer)
     if not is_irreflexive:
         return False
 
     # transitivity
-    is_transitive = is_transitive(transducer)
+    is_transitive = is_transitive(transducer, invariant)
     return is_transitive 
 
 def is_irreflexive(transducer: automata.Automaton) -> bool:
@@ -480,9 +483,33 @@ def is_irreflexive(transducer: automata.Automaton) -> bool:
     else:
         return False
 
-def is_transitive(transducer: automata.Automaton) -> bool:
-    # TODO
-    return 
+def is_transitive(
+        transducer: automata.Automaton,
+        invariant: automata.Automaton
+    ) -> bool:
+    # get post(invariant)
+    post_A = get_transducer_post(
+        automaton = invariant,
+        transducer = transducer
+    )
+
+    # get post(post(invariant))
+    post_post_A = get_transducer_post(
+        automaton = post_A,
+        transducer = transducer
+    )
+
+    # check language inclusion
+    is_included = mata_nfa.is_included(
+        lhs = post_post_A.automaton,
+        rhs = post_A.automaton,
+        alphabet = invariant.alphabet
+    )
+    
+    if is_included == True:
+        return True
+    else:
+        return False 
 
 def create_identity_transducer(symbol_map: list) -> automata.Automaton:
     # new symbol map

@@ -153,7 +153,7 @@ def find_solution(
                 )
                 # check conditions
                 # 1) strict preorder (irreflexivity & transitivity)
-                is_strict_preorder = invariant_conditions.is_strict_preorder(T_aut)
+                is_strict_preorder = invariant_conditions.is_strict_preorder(T_aut, A_aut)
                 if not is_strict_preorder:
                     continue
                 # 2) trace quantifier condition
