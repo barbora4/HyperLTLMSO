@@ -59,6 +59,11 @@ def parse_command_line_arguments():
         help="path to the file with list of symbols",
         required=True
     )
+    input_parser.add_argument(
+        "--max_states",
+        help="maximum number of states of the generated advice bits",
+        required=True
+    )
     args = vars(input_parser.parse_args())
 
     # get input formula

@@ -12,8 +12,6 @@ import time
 if __name__ == "__main__":
     start = time.time()
     
-    MAX_NUM_STATES = 2
-    
     grammar_parser = parse.create_parser("grammar.txt")
     args = parse.parse_command_line_arguments()
 
@@ -69,7 +67,7 @@ if __name__ == "__main__":
     # get only used symbols (not the whole alphabet)
     used_alphabet = restricted_transducer.get_used_symbols()
     A, T = sat_solver.find_solution(
-        max_k = MAX_NUM_STATES, # TODO input parameter
+        max_k = int(args["max_states"]), 
         restricted_initial_conf = restricted_initial_conf,
         restricted_transducer = restricted_transducer,
         original_transducer = system_transducer,
@@ -78,7 +76,7 @@ if __name__ == "__main__":
     ) 
 
     if (A,T) == (None, None):
-        print("Solution was not found for", MAX_NUM_STATES)
+        print("Solution was not found for", args["max_states"])
     else:
         end = time.time()
         print("Solution was found in", end-start, "seconds")
