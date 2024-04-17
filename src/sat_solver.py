@@ -148,7 +148,7 @@ def find_solution(
                 T_aut = convert_model_to_automaton(
                     model = model,
                     used_alphabet = trans_alphabet,
-                    inv = T_aut,
+                    inv = T, 
                     symbol_map = restricted_transducer.symbol_map.copy()
                 )
                 # check conditions

@@ -455,13 +455,13 @@ def is_strict_preorder(
         invariant: automata.Automaton
     ) -> bool:
     # irreflexivity
-    is_irreflexive = is_irreflexive(transducer)
-    if not is_irreflexive:
+    irreflexive = is_irreflexive(transducer)
+    if not irreflexive:
         return False
 
     # transitivity
-    is_transitive = is_transitive(transducer, invariant)
-    return is_transitive 
+    transitive = is_transitive(transducer, invariant)
+    return transitive 
 
 def is_irreflexive(transducer: automata.Automaton) -> bool:
     # identity
@@ -523,11 +523,11 @@ def create_identity_transducer(symbol_map: list) -> automata.Automaton:
 
     # new automaton
     new_aut = mata_nfa.Nfa(1)
-    new_aut.make_initial_states(0)
-    new_aut.make_final_states(0)
+    new_aut.make_initial_state(0)
+    new_aut.make_final_state(0)
 
     # add transitions
-    alphabet_map = new_aut.alphabet.get_symbol_map()
+    alphabet_map = alphabet.get_symbol_map()
     all_symbols = alphabet_map.keys()
     for symbol in all_symbols:
         if symbol[:int(len(symbol)/2)] == symbol[int(len(symbol)/2):]:

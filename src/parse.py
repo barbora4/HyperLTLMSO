@@ -59,16 +59,6 @@ def parse_command_line_arguments():
         help="path to the file with list of symbols",
         required=True
     )
-    input_parser.add_argument(
-        "--invariant",
-        help="path to the file with invariant automaton",
-        required=True
-    )
-    input_parser.add_argument(
-        "--relation",
-        help="path to the file with relation transducer",
-        required=True
-    )
     args = vars(input_parser.parse_args())
 
     # get input formula

@@ -12,7 +12,7 @@ import time
 if __name__ == "__main__":
     start = time.time()
     
-    MAX_NUM_STATES = 3
+    MAX_NUM_STATES = 2
     
     grammar_parser = parse.create_parser("grammar.txt")
     args = parse.parse_command_line_arguments()
@@ -64,41 +64,6 @@ if __name__ == "__main__":
 
     # transducer for eventuality constraints
     formula.make_eventuality_constraints_transducer()
-
-    # generate and check conditions for the formula
-    # invariant
-    invariant = invariant_conditions.get_invariant_from_file(
-        args["invariant"],
-        restricted_initial_conf.symbol_map.copy()
-    )
-    relation = invariant_conditions.get_relation_from_file(
-        args["relation"],
-        restricted_transducer.symbol_map.copy()
-    )
-
-    # check if I subseteq projection(A)
-    initial_condition_holds = invariant_conditions.check_initial_invariant_condition(
-        restricted_initial_conf,
-        invariant
-    )
-    if initial_condition_holds:
-        print("Initial condition holds")
-    else:
-        print("Initial condition does not hold")
-
-    # check of second condition for invariant and relation
-    transition_condition_holds = invariant_conditions.check_transition_invariant_condition(
-        extended_transducer = restricted_transducer,
-        accepting_trans = formula.mso_eventuality_constraints_transducer,
-        invariant = invariant,
-        relation = relation,
-        trace_quantifiers = formula.trace_quantifiers_list,
-        system_transducer = system_transducer
-    )
-    if transition_condition_holds:
-        print("Transition condition holds")
-    else:
-        print("Transition condition does not hold")
 
     # conditions for SAT solver
     # get only used symbols (not the whole alphabet)
