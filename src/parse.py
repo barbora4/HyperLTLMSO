@@ -64,10 +64,6 @@ def parse_command_line_arguments():
         help="maximum number of states of the generated advice bits",
         required=True
     )
+    
     args = vars(input_parser.parse_args())
-
-    # get input formula
-    with open(args["formula"]) as f:
-        formula = f.read()
-
     return args

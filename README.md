@@ -3,7 +3,7 @@
 ## How to run the program
 To run the program use the following command in the ```src``` directory:
 
-``` ./check.py --formula=<path_to_formula> --initial-config=<path_to_initial_automaton> --symbol_mapping=<path_to_list_of_atomic_propositions> --system_transducer=<path_to_transducer_with_system_transitions>```
+``` ./check.py --formula=<path_to_formula> --initial-config=<path_to_initial_automaton> --symbol_mapping=<path_to_list_of_atomic_propositions> --system_transducer=<path_to_transducer_with_system_transitions> --max_states=<max_number_of_advice_bits_states> ```
 
 ## Example of the system
 In token passing protocol, the system consists of a parameterized number of processes in a linear array. In the initial configuration, only the leftmost process has a token. In each step, the token can either stay at the same process, or it can be passed to its right neighbour. 
@@ -38,4 +38,4 @@ The next figure contains the extended system transducer with the second part of 
 
 To test this example, run
 
-```./check.py --formula=../examples/token_passing_f02.txt --initial_config=../examples/token_passing_initial_conf.mata --symbol_mapping=../examples/token_passing_mapping.txt --system_transducer=../examples/token_passing_system.txt --invariant=../examples/token_passing_f02_invariant.txt --relation=../examples/token_passing_f02_relation.txt```
+```./check.py --formula=../examples/token_passing_f02.txt --initial_config=../examples/token_passing_initial_conf.mata --symbol_mapping=../examples/token_passing_mapping.txt --system_transducer=../examples/token_passing_system.txt --max_states=3```
