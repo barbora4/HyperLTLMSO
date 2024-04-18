@@ -3,6 +3,7 @@ from libmata import parser, alphabets, plotting
 import itertools
 import re
 import copy
+import graphviz
 
 class Automaton:
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):
@@ -13,8 +14,7 @@ class Automaton:
         self.atomic_propositions = atomic_propositions
 
     def plot_automaton(self):
-        mata_nfa.store()["alphabet"] = self.alphabet
-        plotting.plot(self.automaton)
+        plotting.plot(self.automaton, alphabet=self.alphabet)
 
     def get_used_symbols(self):
         # get only used symbols (not the whole alphabet)
@@ -33,6 +33,64 @@ class Automaton:
     def get_all_symbols(self):
         alphabet_map = self.alphabet.get_symbol_map()
         return list(alphabet_map.keys())
+
+    def save_automaton(self, name: str):
+        dot = self.get_dot_file(name)
+        # save to dot file
+        dot.render(name + ".dot")
+    
+    def get_dot_file(self, name: str):
+        # modified function from libmata.plotting
+        aut = self.automaton
+        alphabet = self.alphabet
+        node_highlight = None
+        edge_highlight = None
+        
+        # Configuration
+        base_configuration = mata_nfa.store()['node_style']
+        edge_configuration = mata_nfa.store()['edge_style']
+        dot = graphviz.Digraph(name)
+        if aut.label:
+            dot.attr(
+                label=aut.label, labelloc="t", kw="graph",
+                fontname="Helvetica", fontsize="14"
+            )
+
+        # Only print reachable states
+        for state in range(0, aut.num_of_states()):
+            # Helper node to simulate initial automaton
+            plotting._plot_state(
+                aut, dot, state,
+                plotting.get_configuration_for(base_configuration, node_highlight, aut, state)
+            )
+
+        # Plot edges
+        for state in aut.initial_states:
+            dot.edge(f"q{state}", f"{state}", **edge_configuration)
+        edges = {}
+        for trans in aut.iterate():
+            key = f"{trans.source},{trans.target}"
+            if key not in edges.keys():
+                edges[key] = []
+            symbol = "{}".format(
+                alphabet.reverse_translate_symbol(trans.symbol) if alphabet else trans.symbol
+            )
+            edges[key].append((
+                f"{trans.source}", f"{trans.target}", symbol,
+                plotting.get_configuration_for(
+                    edge_configuration, edge_highlight, aut, trans
+                )
+            ))
+        for edge in edges.values():
+            source = edge[0][0]
+            target = edge[0][1]
+            label = "<" + " | ".join(sorted(t[2] for t in edge)) + ">"
+            style = {}
+            for val in edge:
+                style.update(val[3])
+            dot.edge(source, target, label=label, **style)
+
+        return dot
 
 class Transducer(Automaton):
     def __init__(self, automaton: mata_nfa.Nfa, alphabet, symbol_map, number_of_tapes, atomic_propositions):

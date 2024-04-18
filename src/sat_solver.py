@@ -71,7 +71,6 @@ def generate_condition_for_accepting_states(
     # at least one accepting state
     solver.add_clause(inv.state_variables)
 
-
 def find_solution(
         max_k: int,
         restricted_initial_conf: automata.Automaton,
@@ -79,6 +78,7 @@ def find_solution(
         original_transducer: automata.Automaton,
         accepting_transitions: automata.Automaton,
         trace_quantifiers: list,
+        contains_eventually_operator: bool 
     ):
     global GLOBAL_VARIABLE_COUNT
     
@@ -93,7 +93,7 @@ def find_solution(
         # 1) determinism
         generate_condition_for_determinism(aut_alphabet, A, solver_aut)
         # 2) completeness
-        generate_condition_for_completeness(aut_alphabet, A, solver_aut)
+        #generate_condition_for_completeness(aut_alphabet, A, solver_aut)
         # 3) at least one accepting state
         generate_condition_for_accepting_states(aut_alphabet, A, solver_aut)
         # 4) symmetry breaking
@@ -135,7 +135,7 @@ def find_solution(
             # 1) determinism
             generate_condition_for_determinism(trans_alphabet, T, solver_trans)
             # 2) completeness
-            generate_condition_for_completeness(trans_alphabet, T, solver_trans)
+            #generate_condition_for_completeness(trans_alphabet, T, solver_trans)
             # 3) at least one accepting state
             generate_condition_for_accepting_states(trans_alphabet, T, solver_trans)
             # 4) symmetry breaking
@@ -153,9 +153,11 @@ def find_solution(
                 )
                 # check conditions
                 # 1) strict preorder (irreflexivity & transitivity)
-                is_strict_preorder = invariant_conditions.is_strict_preorder(T_aut, A_aut)
-                if not is_strict_preorder:
-                    continue
+                if contains_eventually_operator:
+                    # without F, all transitions are accepting
+                    is_strict_preorder = invariant_conditions.is_strict_preorder(T_aut, A_aut)
+                    if not is_strict_preorder:
+                        continue
                 # 2) trace quantifier condition
                 transition_condition_holds = invariant_conditions.check_transition_invariant_condition(
                     extended_transducer = restricted_transducer,
@@ -165,11 +167,11 @@ def find_solution(
                     trace_quantifiers = trace_quantifiers,
                     system_transducer = original_transducer
                 )
-                if not transition_condition_holds:
-                    continue
-
-                # all conditions hold -> return (A, T), formula holds
-                return A, T
+                if transition_condition_holds:
+                    return A_aut, T_aut
+                if not contains_eventually_operator:
+                    # without F, no need to generate other transducers  
+                    break
                 
             solver_trans.delete()
         solver_aut.delete()

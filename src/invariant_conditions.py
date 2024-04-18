@@ -435,7 +435,7 @@ def remove_first_tape_of_transducer(transducer: automata.Automaton) -> automata.
     transitions = transducer.automaton.get_trans_as_sequence()
     for t in transitions:
         current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
-        new_symbol = current_symbol[len(number_of_symbols):]
+        new_symbol = current_symbol[number_of_symbols:]
         new_aut.add_transition(t.source, new_symbol, t.target)
     new_aut.label = "Symbols: " + str(new_symbol_map)
     
