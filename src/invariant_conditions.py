@@ -50,7 +50,8 @@ def check_initial_invariant_condition(
 def check_invariant_backwards_reachability(
     invariant: automata.Automaton,
     extended_initial_aut: automata.Automaton,
-    relation: automata.Automaton
+    relation: automata.Automaton,
+    extended_transducer: automata.Automaton,
 ): 
     # cylindrification of extended initial configurations
     extended_initial_cylindrified = extend_automaton_to_transducer(
@@ -58,13 +59,22 @@ def check_invariant_backwards_reachability(
         tape_index = 1
     )
 
-    # union with extended transducer
-    union_aut = automata.Automaton(
-        automata.union(extended_initial_cylindrified, relation),
+    # intersection of extened transducer and the relation
+    trans_intersection = automata.Automaton(
+        automata.intersection(extended_transducer, relation),
         relation.alphabet,
         relation.symbol_map.copy(),
         relation.number_of_tapes,
         relation.atomic_propositions
+    )
+
+    # union with extended transducer
+    union_aut = automata.Automaton(
+        automata.union(extended_initial_cylindrified, trans_intersection),
+        trans_intersection.alphabet,
+        trans_intersection.symbol_map.copy(),
+        trans_intersection.number_of_tapes,
+        trans_intersection.atomic_propositions
     )
 
     # cylindrified invariant to transducer

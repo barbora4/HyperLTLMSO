@@ -236,7 +236,8 @@ def find_solution(
                 backwards_reachability_holds = invariant_conditions.check_invariant_backwards_reachability(
                     invariant = A_aut,
                     extended_initial_aut = restricted_initial_conf,
-                    relation = T_aut
+                    relation = T_aut,
+                    extended_transducer = restricted_transducer
                 )
                 if not backwards_reachability_holds[0]:
                     continue
