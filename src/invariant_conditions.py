@@ -32,16 +32,77 @@ def get_relation_from_file(file_name: str, symbol_map: list) -> automata.Automat
 def check_initial_invariant_condition(
     extended_initial_aut: automata.Automaton,
     invariant: automata.Automaton
-) -> bool:
+):
     # 1) remove configuration tapes in both automata
     initial_projected = automata.remove_configuration_tape(extended_initial_aut)
     invariant_projected = automata.remove_configuration_tape(invariant)
 
     # 2) check if L(initial_projected) subseteq L(invariant_projected)
-    is_subseteq = mata_nfa.is_included(
+    is_subseteq = mata_nfa.is_included_with_cex(
         lhs = initial_projected.automaton,
         rhs = invariant_projected.automaton,
         alphabet = initial_projected.alphabet
+    )
+
+    # returns tuple (bool, counterexample_word)
+    return is_subseteq 
+
+def check_invariant_backwards_reachability(
+    invariant: automata.Automaton,
+    extended_initial_aut: automata.Automaton,
+    relation: automata.Automaton
+): 
+    # cylindrification of extended initial configurations
+    extended_initial_cylindrified = extend_automaton_to_transducer(
+        aut = extended_initial_aut,
+        tape_index = 1
+    )
+
+    # union with extended transducer
+    union_aut = automata.Automaton(
+        automata.union(extended_initial_cylindrified, relation),
+        relation.alphabet,
+        relation.symbol_map.copy(),
+        relation.number_of_tapes,
+        relation.atomic_propositions
+    )
+
+    # cylindrified invariant to transducer
+    first = extend_automaton_to_transducer(
+        aut = invariant,
+        tape_index = 0
+    )
+    second = extend_automaton_to_transducer(
+        aut = invariant,
+        tape_index =  1
+    )
+    cylindrified_invariant = automata.Automaton(
+        automata.intersection(first, second),
+        first.alphabet,
+        first.symbol_map.copy(),
+        first.number_of_tapes,
+        first.atomic_propositions
+    )
+
+    # intersection with cylindrified invariant
+    intersection_aut = automata.Automaton(
+        automata.intersection(cylindrified_invariant, union_aut),
+        union_aut.alphabet,
+        union_aut.symbol_map.copy(),
+        union_aut.number_of_tapes,
+        union_aut.atomic_propositions
+    )
+
+    # remove first tape of intersection_aut
+    aut_with_removed_tape = project_transducer_to_automaton(
+        aut = intersection_aut,
+        tape_index_to_remove = 0
+    )
+
+    is_subseteq = mata_nfa.is_included_with_cex(
+        lhs = invariant.automaton,
+        rhs = aut_with_removed_tape.automaton,
+        alphabet = invariant.alphabet
     )
 
     return is_subseteq
@@ -88,6 +149,43 @@ def extend_automaton_to_transducer(
         aut.number_of_tapes * 2,
         aut.atomic_propositions
     )
+
+def project_transducer_to_automaton(
+    aut: automata.Automaton,
+    tape_index_to_remove: int      
+) -> automata.Automaton:
+    variables_count = sum(len(map) for map in aut.symbol_map)
+
+    new_alphabet = automata.create_symbol_map(int(variables_count/2))
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+    mata_nfa.store()["alphabet"] = alphabet
+    new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
+    new_aut.make_initial_states(aut.automaton.initial_states)
+    new_aut.make_final_states(aut.automaton.final_states)
+
+    alphabet_map = aut.alphabet.get_symbol_map()
+    transitions = aut.automaton.get_trans_as_sequence()
+    for t in transitions:
+        current_symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(t.symbol)]
+        if tape_index_to_remove == 0:
+            new_aut.add_transition(t.source, current_symbol[int(variables_count/2):], t.target)
+        elif tape_index_to_remove == 1:
+            new_aut.add_transition(t.source, current_symbol[:int(variables_count/2)], t.target)
+        else:
+            raise ValueError("Wrong tape index")
+
+    new_symbol_map = [aut.symbol_map[i].copy() for i in range(int(len(aut.symbol_map)/2))]
+    new_aut.label = "Symbols: " + str(new_symbol_map)
+    
+    result =  automata.Automaton(
+        new_aut, 
+        alphabet,
+        new_symbol_map,
+        int(aut.number_of_tapes / 2),
+        aut.atomic_propositions
+    )
+    result.automaton = automata.minimize(result)
+    return result
 
 def create_cylindrified_system_transducer(
     system_transducer: automata.Automaton,
@@ -236,7 +334,8 @@ def check_transition_invariant_condition(
     invariant: automata.Automaton,
     relation: automata.Automaton,
     trace_quantifiers: list,
-    system_transducer: automata.Automaton
+    system_transducer: automata.Automaton,
+    extended_initial: automata.Automaton
 ) -> bool:
     # 1) both the current and the next configuration of the transducer
     # have to be in an invariant
@@ -366,7 +465,7 @@ def check_transition_invariant_condition(
 def check_invariant_inductiveness(
         invariant: automata.Automaton,
         extended_transducer: automata.Automaton
-    ) -> bool:
+    ):
 
     # transducer for x in A
     first = extend_automaton_to_transducer(invariant, 0)
@@ -383,15 +482,12 @@ def check_invariant_inductiveness(
     ) 
 
     # language inclusion check
-    is_included = mata_nfa.is_included(
+    is_included = mata_nfa.is_included_with_cex(
         lhs = intersection.automaton,
         rhs = second.automaton,
         alphabet = extended_transducer.alphabet
     )
-    if is_included == True:
-        return True
-    else:
-        return False
+    return is_included 
     
 def get_transducer_post(
         automaton: automata.Automaton,

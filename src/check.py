@@ -8,6 +8,7 @@ import sat_solver
 import libmata.nfa.nfa as mata_nfa
 from libmata import parser, alphabets, plotting
 import time 
+import sys 
 
 if __name__ == "__main__":
     start = time.time()

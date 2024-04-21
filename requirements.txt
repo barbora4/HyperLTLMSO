@@ -1,3 +1,4 @@
 libmata
 pysat
 graphviz
+lark

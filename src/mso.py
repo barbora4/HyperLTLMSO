@@ -251,4 +251,44 @@ class MSOFormula:
                 aut.add_transition(1, prefix_i_zero + "00", 1)
                 aut.add_transition(1, prefix_i_zero + "10", 1)
 
+        result = automata.Automaton(aut, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)
+        return result
+
+
+    def configuration_variable_without_i(self, config_var):
+        number_of_tapes = len(self.trace_quantifiers) + 1 # one extra tape for configuration variables
+        symbol_map = [copy.deepcopy(self.atomic_propositions) for _ in range(len(self.trace_quantifiers))]
+        if "[" not in config_var:
+            config_var_name = config_var
+            process_var = ""
+        else:
+            config_var_name = config_var[:len(config_var)-3]
+            process_var = config_var[-2]
+        symbol_map.append([config_var_name]) # one extra tape for configuration variables
+        
+        # create new alphabet
+        symbol_length = len(self.atomic_propositions) * len(self.trace_quantifiers) + 1
+        new_alphabet = automata.create_symbol_map(symbol_length)
+        alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
+        mata_nfa.store()["alphabet"] = alphabet
+
+        # generate all options for new variables
+        new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
+        new_variables = list(itertools.product([0,1], repeat=new_variables_count))
+
+        aut = mata_nfa.Nfa(2, label="Symbols: " + str(symbol_map))
+        aut.make_initial_state(0)
+        aut.make_final_state(1)
+        config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 1
+        for option in new_variables:
+            prefix = ""
+            for i in range(config_var_pos):
+                prefix += str(option[i])
+            # i stays the same for transducers
+            prefix_i_zero = prefix
+            prefix_i_one = prefix
+            aut.add_transition(0, prefix_i_zero + "0", 0)
+            aut.add_transition(0, prefix_i_one + "1", 1)
+            aut.add_transition(1, prefix_i_zero + "0d", 1)
+
         return automata.Automaton(aut, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)

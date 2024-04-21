@@ -33,6 +33,18 @@ class Automaton:
     def get_all_symbols(self):
         alphabet_map = self.alphabet.get_symbol_map()
         return list(alphabet_map.keys())
+    
+    def get_all_symbols_from_first_tape(self):
+        alphabet_map = self.alphabet.get_symbol_map()
+        return list(set(key[:int(len(key)/2)] for key in list(alphabet_map.keys())))
+    
+    def get_word_from_labels(self, labels: list) -> list:
+        word = list()
+        alphabet_map = self.alphabet.get_symbol_map()
+        for label in labels:
+            symbol = list(alphabet_map.keys())[list(alphabet_map.values()).index(label)]
+            word.append(symbol)
+        return word
 
     def save_automaton(self, name: str):
         dot = self.get_dot_file(name)
@@ -208,7 +220,7 @@ def extend_alphabet_on_last_tape(aut: Automaton, new_symbol_map, second_to_last=
 
     total_new_symbol_map = aut.symbol_map.copy()
     total_new_symbol_map[tape_index] = new_symbol_map.copy()
-    new_aut.label = "Symbols: " + str(aut.symbol_map)
+    new_aut.label = "Symbols: " + str(total_new_symbol_map)
 
     # change automaton alphabet
     return Automaton(new_aut, alphabet, total_new_symbol_map, aut.number_of_tapes, aut.atomic_propositions)
@@ -248,7 +260,7 @@ def remove_symbol_on_index(aut: Automaton, index: int, second_to_last=False):
     new_aut.make_final_states(aut.automaton.final_states)
 
     # new symbol map
-    new_symbol_map = aut.symbol_map
+    new_symbol_map = aut.symbol_map.copy()
     new_symbol_map[tape_index] = aut.symbol_map[tape_index][:index] + aut.symbol_map[tape_index][index+1:] if len(aut.symbol_map[tape_index]) > index+1 else aut.symbol_map[tape_index][:index]
 
     # change transitions

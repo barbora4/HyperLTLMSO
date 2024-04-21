@@ -123,7 +123,8 @@ class Formula:
         self.mso_eventuality_constraints_transducer.plot_automaton()
 
     def make_initial_automaton(self):
-        self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula)
+        initial_constraint = not (self.bnf.mso_formula.is_universal_quantifier() or self.bnf.mso_formula.is_existential_quantifier())
+        self.mso_initial_automaton = self.convert_formula_to_automaton(self.bnf.mso_formula, initial=initial_constraint)
         self.mso_initial_automaton.automaton = automata.minimize(self.mso_initial_automaton)
 
     def make_local_constraints_transducer(self):
@@ -152,13 +153,16 @@ class Formula:
         else:
             self.mso_eventuality_constraints_transducer = self.mso_local_constraints_transducer 
 
-    def convert_formula_to_automaton(self, formula: Node):
+    def convert_formula_to_automaton(self, formula: Node, initial=False):
         # return mso automaton for atomic formulae
         automaton = None
         if formula.is_atomic_formula():
             # new configuration variable
             if isinstance(formula.data, str):
-                automaton = self.mso_converter.configuration_variable(formula.data)
+                if initial:
+                    automaton = self.mso_converter.configuration_variable_without_i(formula.data)
+                else: 
+                    automaton = self.mso_converter.configuration_variable(formula.data)
             # i in I
             elif len(formula.data) == 3 and formula.data[1] == TreeOperators.IN.value:
                 automaton = self.mso_converter.process_in_process_set(formula.data[0], formula.data[2])
@@ -174,28 +178,28 @@ class Formula:
 
         elif formula.data == TreeOperators.AND:
             # convert both subtrees to an automaton
-            aut1 = self.convert_formula_to_automaton(formula.left)
-            aut2 = self.convert_formula_to_automaton(formula.right)
+            aut1 = self.convert_formula_to_automaton(formula.left, initial)
+            aut2 = self.convert_formula_to_automaton(formula.right, initial)
             automaton = self.convert_and(aut1, aut2)
 
         elif formula.data == TreeOperators.OR:
             # convert both subtrees to an automaton
-            aut1 = self.convert_formula_to_automaton(formula.left)
-            aut2 = self.convert_formula_to_automaton(formula.right)
+            aut1 = self.convert_formula_to_automaton(formula.left, initial)
+            aut2 = self.convert_formula_to_automaton(formula.right, initial)
             automaton = self.convert_or(aut1, aut2)
 
         elif formula.data == TreeOperators.NEG:
-            child = self.convert_formula_to_automaton(formula.left)
+            child = self.convert_formula_to_automaton(formula.left, initial)
             automaton = self.convert_negation(child)
 
         elif formula.data == TreeOperators.IMPLIES:
-            left_child = self.convert_formula_to_automaton(formula.left)
-            right_child = self.convert_formula_to_automaton(formula.right)
+            left_child = self.convert_formula_to_automaton(formula.left, initial)
+            right_child = self.convert_formula_to_automaton(formula.right, initial)
             automaton = self.convert_implication(left_child, right_child)
 
         elif formula.data == TreeOperators.IFF:
-            left_child = self.convert_formula_to_automaton(formula.left)
-            right_child = self.convert_formula_to_automaton(formula.right)
+            left_child = self.convert_formula_to_automaton(formula.left, initial)
+            right_child = self.convert_formula_to_automaton(formula.right, initial)
             automaton = self.convert_equivalence(left_child, right_child)
 
         elif formula.data == TreeOperators.NEXT:
@@ -208,13 +212,13 @@ class Formula:
                 raise ValueError("Next is allowed only for configuration variables!")
 
         elif formula.is_existential_quantifier():
-            child = self.convert_formula_to_automaton(formula.left)
+            child = self.convert_formula_to_automaton(formula.left, initial)
             var_to_remove = formula.data[1]
             automaton = self.convert_existential_quantifier(child, var_to_remove)
 
         elif formula.is_universal_quantifier():
             # forall i. phi <=> ! exists i. ! phi
-            child = self.convert_formula_to_automaton(formula.left)
+            child = self.convert_formula_to_automaton(formula.left, initial)
             child_neg = self.convert_negation(child)
             var_to_remove = formula.data[1]
             exists_child_neg = self.convert_existential_quantifier(child_neg, var_to_remove)
@@ -232,6 +236,13 @@ class Formula:
             index_to_remove = automaton.symbol_map[-2].index(var_to_remove)
             automaton = automata.remove_symbol_on_index(automaton, index_to_remove, second_to_last=True)
 
+        # first order variables must be singletons
+        self.force_singletons(automaton)
+        self.force_same_process_vars(automaton)
+        self.force_singletons(automaton)
+
+        automaton.automaton = automata.minimize(automaton)
+        
         return automaton
     
     def convert_equivalence(self, aut1: automata.Automaton, aut2:automata.Automaton):
@@ -576,6 +587,8 @@ class BnfFormula:
             else:
                 new_variable = self.create_new_variable("i", is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
                 free_variable = "i"
+            #new_variable = self.create_new_variable("z", is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
+            #free_variable = "z"
 
             # create local constraints
             if node.data in [TreeOperators.ALWAYS.value, TreeOperators.EVENTUALLY.value]: 
