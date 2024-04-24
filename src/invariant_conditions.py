@@ -28,6 +28,7 @@ def get_relation_from_file(file_name: str, symbol_map: list) -> automata.Automat
         symbol_map, 
         with_configuration=True
     )
+    
 
 def check_initial_invariant_condition(
     extended_initial_aut: automata.Automaton,
@@ -44,8 +45,14 @@ def check_initial_invariant_condition(
         alphabet = initial_projected.alphabet
     )
 
+    word = None
+    if not is_subseteq[0]:
+        counterexample = is_subseteq[1]
+        labels = counterexample.word 
+        word = initial_projected.get_word_from_labels(labels)
+
     # returns tuple (bool, counterexample_word)
-    return is_subseteq 
+    return (is_subseteq[0], word) 
 
 def check_invariant_backwards_reachability(
     invariant: automata.Automaton,

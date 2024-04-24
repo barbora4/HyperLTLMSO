@@ -18,6 +18,20 @@ class Invariant:
         self.used_alphabet = list()
         self.auxiliary_variables = list()
 
+def get_all_words_from_projected_word(word: list, conf_variables: int):
+    all_words = list()
+
+    new_variables = list(itertools.product([0,1], repeat=conf_variables * len(word)))
+
+    for option in new_variables:
+        new_word = word.copy()
+        for i in range(len(word)):
+            for k in range(conf_variables):
+                new_word[i] += str(option[i*conf_variables + k])
+        all_words.append(new_word)
+
+    return all_words 
+
 def generate_condition_for_determinism(
         inv: Invariant,
         solver: Solver
@@ -94,35 +108,39 @@ def get_src_from_variable(
         # one src is for num_symbols * num_states transitions
         return int((variable-1) / (len(invariant.used_alphabet) * invariant.num_states))
 
-def add_word_to_be_accepted(
-        word: list,
+def add_words_to_be_accepted(
+        words: list,
         solver: Solver,
         invariant: Invariant
     ):
+    # at least one os the word in words should be accepted 
     global GLOBAL_VARIABLE_COUNT
     
-    dnf_clauses = [[] for _ in range(invariant.num_states**(len(word)))] # N^(l-1) clauses
-    
-    for index, symbol in enumerate(word):
-        number_of_repetitions = invariant.num_states ** (len(word)-1-index)
-        
+    all_dnf_clauses = list()
+    for word in words: 
+        dnf_clauses = [[] for _ in range(invariant.num_states**(len(word)))] # N^(l-1) clauses
+
+        for index, symbol in enumerate(word):
+            number_of_repetitions = invariant.num_states ** (len(word)-1-index)
+
+            clause_index = 0
+            while clause_index < len(dnf_clauses):
+                if index == 0:
+                    src_index = 0
+                else:
+                    src_index = get_src_from_variable(invariant, dnf_clauses[clause_index][-1])
+                transitions = find_transitions(src_index, symbol, invariant)
+                for t in transitions:
+                    for _ in range(number_of_repetitions):
+                        dnf_clauses[clause_index].append(t)
+                        clause_index += 1
+        # add accepting state
         clause_index = 0
         while clause_index < len(dnf_clauses):
-            if index == 0:
-                src_index = 0
-            else:
-                src_index = get_src_from_variable(invariant, dnf_clauses[clause_index][-1])
-            transitions = find_transitions(src_index, symbol, invariant)
-            for t in transitions:
-                for _ in range(number_of_repetitions):
-                    dnf_clauses[clause_index].append(t)
-                    clause_index += 1
-    # add accepting state
-    clause_index = 0
-    while clause_index < len(dnf_clauses):
-        for state in invariant.state_variables:
-            dnf_clauses[clause_index].append(state)
-            clause_index += 1
+            for state in invariant.state_variables:
+                dnf_clauses[clause_index].append(state)
+                clause_index += 1
+        all_dnf_clauses += dnf_clauses 
 
     # Tseytin transformation into CNF
     # new name for each clause 
@@ -149,7 +167,6 @@ def find_solution(
     global GLOBAL_VARIABLE_COUNT
     
     # increment number of states
-    iterations = 0
     for k_aut in range(1, max_k+1):
         GLOBAL_VARIABLE_COUNT = 0
         solver_aut = Solver(name='g3')
@@ -160,8 +177,6 @@ def find_solution(
         # generate conditions for invariant
         # 1) determinism
         generate_condition_for_determinism(A, solver_aut)
-        # 2) completeness
-        #generate_condition_for_completeness(aut_alphabet, A, solver_aut)
         # 3) at least one accepting state
         generate_condition_for_accepting_states(A, solver_aut)
         # 4) symmetry breaking
@@ -170,6 +185,7 @@ def find_solution(
         # solve
         solver_aut.solve()
         for model in solver_aut.enum_models():
+
             # convert to automaton instance
             A_aut = convert_model_to_automaton(
                 model = model, 
@@ -184,13 +200,12 @@ def find_solution(
                 invariant = A_aut
             )
             if not initial_condition_holds[0]:
-                counterexample = initial_condition_holds[1] # mata_nfa.Run
-                labels = counterexample.word # list of labels
-                # convert list of labels to word
-                word = A_aut.get_word_from_labels(labels)
-                # this word should be accepted
-                # TODO!!!!!
-                #add_word_to_be_accepted(word, solver_aut, A)
+                word  = initial_condition_holds[1]
+                # this PROJECTED word should be accepted
+                total_symbols = sum([len(map) for map in restricted_initial_conf.symbol_map.copy()])
+                conf_variables = total_symbols - len(word[0])
+                words = get_all_words_from_projected_word(word, conf_variables)
+                add_words_to_be_accepted(words, solver_aut, A)
                 continue
             
             # 2) inductiveness
@@ -210,8 +225,6 @@ def find_solution(
             # generate conditions for transducer
             # 1) determinism
             generate_condition_for_determinism(T, solver_trans)
-            # 2) completeness
-            #generate_condition_for_completeness(trans_alphabet, T, solver_trans)
             # 3) at least one accepting state
             generate_condition_for_accepting_states(T, solver_trans)
             # 4) symmetry breaking
