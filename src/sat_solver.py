@@ -154,6 +154,44 @@ def add_words_to_be_accepted(
     solver.add_clause([aux_var for aux_var in invariant.auxiliary_variables])
     invariant.auxiliary_variables = list()
 
+def add_word_to_be_rejected(
+    word: str,
+    solver: Solver,
+    relation: automata.Automaton
+):
+    global GLOBAL_VARIABLE_COUNT
+
+    cnf_clauses = [[] for _ in range(relation.num_states**(len(word)))] # N^(l-1) clauses
+
+    if len(word) == 0:
+        solver.add_clause([-relation.state_variables[0]])
+        return 
+
+    for index, symbol in enumerate(word):
+        number_of_repetitions = relation.num_states ** (len(word)-1-index)
+        clause_index = 0
+        while clause_index < len(cnf_clauses):
+            if index == 0:
+                src_index = 0
+            else:
+                src_index = get_src_from_variable(relation, cnf_clauses[clause_index][-1])
+            transitions = find_transitions(src_index, symbol, relation)
+            for t in transitions:
+                for _ in range(number_of_repetitions):
+                    cnf_clauses[clause_index].append(-t)
+                    clause_index += 1
+
+    # add accepting state
+    clause_index = 0
+    while clause_index < len(cnf_clauses):
+        for state in relation.state_variables:
+            cnf_clauses[clause_index].append(-state)
+            clause_index += 1
+
+    # add cnf clauses to solver
+    for clause in cnf_clauses: 
+        solver.add_clause(clause)
+
 
 def find_solution(
         max_k: int,
@@ -241,10 +279,15 @@ def find_solution(
                 )
                 # check conditions
                 # 1) strict preorder (irreflexivity & transitivity)
-                # without F, no need to construct strict preorder
-                is_strict_preorder = invariant_conditions.is_strict_preorder(T_aut, A_aut)
-                if not is_strict_preorder:
+                is_irreflexive = invariant_conditions.is_irreflexive(T_aut)
+                if not is_irreflexive[0]:
+                    word = is_irreflexive[1]
+                    # this word should be rejected 
+                    add_word_to_be_rejected(word, solver_trans, T)
                     continue
+                is_transitive = invariant_conditions.is_transitive(T_aut, A_aut)
+                if not is_transitive[0]:
+                    continue  
                 # 1.5) check backwards reachability
                 backwards_reachability_holds = invariant_conditions.check_invariant_backwards_reachability(
                     invariant = A_aut,

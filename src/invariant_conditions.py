@@ -569,7 +569,7 @@ def is_strict_preorder(
     ) -> bool:
     # irreflexivity
     irreflexive = is_irreflexive(transducer)
-    if not irreflexive:
+    if not irreflexive[0]:
         return False
 
     # transitivity
@@ -580,21 +580,31 @@ def is_irreflexive(transducer: automata.Automaton) -> bool:
     # identity
     identity = create_identity_transducer(transducer.symbol_map.copy())
 
-    # intersection
-    intersection = automata.Automaton(
-        automata.intersection(transducer, identity),
+    # complement of relation
+    transducer_compl = automata.Automaton(
+        automata.complement(transducer),
         transducer.alphabet,
         transducer.symbol_map.copy(),
         transducer.number_of_tapes,
         transducer.atomic_propositions
     )
 
-    # emptiness check
-    is_empty = intersection.automaton.is_lang_empty()
-    if is_empty == True:
-        return True
-    else:
-        return False
+    # language inclusion check 
+    is_subseteq = mata_nfa.is_included_with_cex(
+        lhs = identity.automaton,
+        rhs = transducer_compl.automaton,
+        alphabet = identity.alphabet
+    )
+
+    word = None
+    if not is_subseteq[0]:
+        counterexample = is_subseteq[1]
+        labels = counterexample.word 
+        word = identity.get_word_from_labels(labels)
+
+    # returns tuple (bool, counterexample_word)
+    return (is_subseteq[0], word) 
+
 
 def is_transitive(
         transducer: automata.Automaton,
@@ -613,16 +623,19 @@ def is_transitive(
     )
 
     # check language inclusion
-    is_included = mata_nfa.is_included(
+    is_subseteq = mata_nfa.is_included_with_cex(
         lhs = post_post_A.automaton,
         rhs = post_A.automaton,
         alphabet = invariant.alphabet
     )
     
-    if is_included == True:
-        return True
-    else:
-        return False 
+    word = None
+    if not is_subseteq[0]:
+        counterexample = is_subseteq[1]
+        labels = counterexample.word 
+        word = post_post_A.get_word_from_labels(labels)
+
+    return (is_subseteq[0], word)
 
 def create_identity_transducer(symbol_map: list) -> automata.Automaton:
     # new symbol map
