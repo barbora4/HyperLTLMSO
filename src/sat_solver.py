@@ -59,6 +59,19 @@ def generate_condition_for_determinism(
                 if option[0] != option[1]:
                     solver.add_clause([-(option[0]), -(option[1])])
 
+def generate_condition_for_automaton(
+        inv: Invariant,
+        solver: Solver
+    ):
+    global GLOBAL_VARIABLE_COUNT
+
+    # create transition variables
+    # src+symbol+dst ordered alphabetically
+    inv.trans_variables = list(range(1+GLOBAL_VARIABLE_COUNT, 1+GLOBAL_VARIABLE_COUNT+inv.num_states*inv.num_states*len(inv.used_alphabet)))
+    GLOBAL_VARIABLE_COUNT += len(inv.trans_variables)
+
+    # simple condition for at least one transition
+    solver.add_clause(inv.trans_variables)
 
 def generate_condition_for_completeness(
         inv: Invariant,
@@ -213,8 +226,8 @@ def find_solution(
         A.used_alphabet = restricted_transducer.get_all_symbols_from_first_tape()
 
         # generate conditions for invariant
-        # 1) determinism
-        generate_condition_for_determinism(A, solver_aut)
+        # 1) automaton
+        generate_condition_for_automaton(A, solver_aut)
         # 3) at least one accepting state
         generate_condition_for_accepting_states(A, solver_aut)
         # 4) symmetry breaking
@@ -261,8 +274,8 @@ def find_solution(
             T.used_alphabet = restricted_transducer.get_all_symbols()
 
             # generate conditions for transducer
-            # 1) determinism
-            generate_condition_for_determinism(T, solver_trans)
+            # 1) automaton
+            generate_condition_for_automaton(T, solver_trans)
             # 3) at least one accepting state
             generate_condition_for_accepting_states(T, solver_trans)
             # 4) symmetry breaking
