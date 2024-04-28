@@ -2,3 +2,4 @@ libmata
 pysat
 graphviz
 lark
+python-sat

@@ -276,9 +276,9 @@ class MSOFormula:
         new_variables_count = len(self.atomic_propositions) * len(self.trace_quantifiers)
         new_variables = list(itertools.product([0,1], repeat=new_variables_count))
 
-        aut = mata_nfa.Nfa(2, label="Symbols: " + str(symbol_map))
+        aut = mata_nfa.Nfa(1, label="Symbols: " + str(symbol_map))
         aut.make_initial_state(0)
-        aut.make_final_state(1)
+        aut.make_final_state(0)
         config_var_pos = len(self.atomic_propositions) * (number_of_tapes - 1) + len(symbol_map[-1]) - 1
         for option in new_variables:
             prefix = ""
@@ -287,8 +287,6 @@ class MSOFormula:
             # i stays the same for transducers
             prefix_i_zero = prefix
             prefix_i_one = prefix
-            aut.add_transition(0, prefix_i_zero + "0", 0)
-            aut.add_transition(0, prefix_i_one + "1", 1)
-            aut.add_transition(1, prefix_i_zero + "0d", 1)
+            aut.add_transition(0, prefix_i_zero + "1", 0)
 
         return automata.Automaton(aut, alphabet, symbol_map, number_of_tapes, self.atomic_propositions)

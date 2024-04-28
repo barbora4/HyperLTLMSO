@@ -66,13 +66,13 @@ def check_invariant_backwards_reachability(
         tape_index = 1
     )
 
-    # intersection of extened transducer and the relation
+    # intersection of extended transducer and the relation
     trans_intersection = automata.Automaton(
         automata.intersection(extended_transducer, relation),
-        relation.alphabet,
-        relation.symbol_map.copy(),
-        relation.number_of_tapes,
-        relation.atomic_propositions
+        extended_transducer.alphabet,
+        extended_transducer.symbol_map.copy(),
+        extended_transducer.number_of_tapes,
+        extended_transducer.atomic_propositions
     )
 
     # union with extended transducer
@@ -121,6 +121,12 @@ def check_invariant_backwards_reachability(
         rhs = aut_with_removed_tape.automaton,
         alphabet = invariant.alphabet
     )
+
+    if not is_subseteq[0]:
+        counterexample = is_subseteq[1]
+        labels = counterexample.word 
+        word = invariant.get_word_from_labels(labels)
+        #print(word)
 
     return is_subseteq
 

@@ -1,0 +1,1 @@
+exists t1. G(exists i. (!(exists j. i = succ(j))) & t_t1[i])

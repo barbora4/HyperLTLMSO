@@ -207,124 +207,144 @@ def add_word_to_be_rejected(
 
 
 def find_solution(
-        max_k: int,
+        k_aut: int,
         restricted_initial_conf: automata.Automaton,
         restricted_transducer: automata.Automaton,
         original_transducer: automata.Automaton,
         accepting_transitions: automata.Automaton,
         trace_quantifiers: list,
-        contains_eventually_operator: bool 
+        contains_eventually_operator: bool ,
+        T_aut,
+        A_aut  
     ):
     global GLOBAL_VARIABLE_COUNT
+    relation_given = (T_aut != None) 
+    invariant_given = (A_aut != None)
     
-    # increment number of states
-    for k_aut in range(1, max_k+1):
-        GLOBAL_VARIABLE_COUNT = 0
-        solver_aut = Solver(name='g3')
-        A = Invariant(k_aut)
-        # only symbols used on first tape of the transducer are in the alphabet
-        A.used_alphabet = restricted_transducer.get_all_symbols_from_first_tape()
+    GLOBAL_VARIABLE_COUNT = 0
+    # solver setup
+    solver = Solver(name='g3')
+    # advice bits bound on states
+    A = Invariant(k_aut)
+    T = Invariant(k_aut)
 
+    # only symbols used on first tape of the transducer are in the alphabet
+    A.used_alphabet = restricted_transducer.get_all_symbols_from_first_tape()
+    T.used_alphabet = restricted_transducer.get_all_symbols()
+
+    if not invariant_given:
         # generate conditions for invariant
         # 1) automaton
-        generate_condition_for_automaton(A, solver_aut)
+        generate_condition_for_automaton(A, solver)
         # 3) at least one accepting state
-        generate_condition_for_accepting_states(A, solver_aut)
+        generate_condition_for_accepting_states(A, solver)
         # 4) symmetry breaking
         # TODO
 
-        # solve
-        solver_aut.solve()
-        for model in solver_aut.enum_models():
+    if not relation_given:
+        # generate conditions for relation
+        # 1) automaton
+        generate_condition_for_automaton(T, solver)
+        # 3) at least one accepting state
+        generate_condition_for_accepting_states(T, solver)
+        # 4) symmetry breaking
+        # TODO
 
-            # convert to automaton instance
+    # solve
+    solver.solve()
+
+    for model in solver.enum_models():
+        # convert to automaton instance
+        if not invariant_given:
             A_aut = convert_model_to_automaton(
                 model = model, 
                 inv = A, 
                 symbol_map = restricted_initial_conf.symbol_map.copy()
             )
-            
-            # check conditions
-            # 1) inclusion of initial configurations
-            initial_condition_holds = invariant_conditions.check_initial_invariant_condition(
-                extended_initial_aut = restricted_initial_conf,
-                invariant = A_aut
+        if not relation_given:
+            T_aut = convert_model_to_automaton(
+                model = model,
+                inv = T, 
+                symbol_map = restricted_transducer.symbol_map.copy()
             )
-            if not initial_condition_holds[0]:
-                word  = initial_condition_holds[1]
-                # this PROJECTED word should be accepted
-                total_symbols = sum([len(map) for map in restricted_initial_conf.symbol_map.copy()])
-                conf_variables = total_symbols - len(word[0])
-                words = get_all_words_from_projected_word(word, conf_variables)
-                add_words_to_be_accepted(words, solver_aut, A)
-                continue
             
-            # 2) inductiveness
-            is_inductive = invariant_conditions.check_invariant_inductiveness(
-                invariant = A_aut,
-                extended_transducer = restricted_transducer
-            )
-            if not is_inductive[0]:
-                continue
-            
-            # conditions for the invariant hold -> generate transducer
-            GLOBAL_VARIABLE_COUNT = 0
-            solver_trans = Solver(name='g3')
-            T = Invariant(k_aut)
-            T.used_alphabet = restricted_transducer.get_all_symbols()
-
-            # generate conditions for transducer
-            # 1) automaton
-            generate_condition_for_automaton(T, solver_trans)
-            # 3) at least one accepting state
-            generate_condition_for_accepting_states(T, solver_trans)
-            # 4) symmetry breaking
+        # check conditions
+        # 1) inclusion of initial configurations
+        initial_condition_holds = invariant_conditions.check_initial_invariant_condition(
+            extended_initial_aut = restricted_initial_conf,
+            invariant = A_aut
+        )
+        if not initial_condition_holds[0]:
+            if invariant_given:
+                print("Given invariant does not contain initial configurations")
+                sys.exit()
+            word  = initial_condition_holds[1]
+            # this PROJECTED word should be accepted
+            total_symbols = sum([len(map) for map in restricted_initial_conf.symbol_map.copy()])
+            conf_variables = total_symbols - len(word[0])
+            words = get_all_words_from_projected_word(word, conf_variables)
             # TODO
-
-            # solve
-            solver_trans.solve()
-            for model in solver_trans.enum_models():
-                # convert to automaton instance
-                T_aut = convert_model_to_automaton(
-                    model = model,
-                    inv = T, 
-                    symbol_map = restricted_transducer.symbol_map.copy()
-                )
-                # check conditions
-                # 1) strict preorder (irreflexivity & transitivity)
-                is_irreflexive = invariant_conditions.is_irreflexive(T_aut)
-                if not is_irreflexive[0]:
-                    word = is_irreflexive[1]
-                    # this word should be rejected 
-                    add_word_to_be_rejected(word, solver_trans, T)
-                    continue
-                is_transitive = invariant_conditions.is_transitive(T_aut, A_aut)
-                if not is_transitive[0]:
-                    continue  
-                # 1.5) check backwards reachability
-                backwards_reachability_holds = invariant_conditions.check_invariant_backwards_reachability(
-                    invariant = A_aut,
-                    extended_initial_aut = restricted_initial_conf,
-                    relation = T_aut,
-                    extended_transducer = restricted_transducer
-                )
-                if not backwards_reachability_holds[0]:
-                    continue
-                # 2) trace quantifier condition
-                transition_condition_holds = invariant_conditions.check_transition_invariant_condition(
-                    extended_transducer = restricted_transducer,
-                    accepting_trans = accepting_transitions,
-                    invariant = A_aut,
-                    relation = T_aut,
-                    trace_quantifiers = trace_quantifiers,
-                    system_transducer = original_transducer,
-                    extended_initial = restricted_initial_conf,
-                )
-                if transition_condition_holds:
-                    return A_aut, T_aut
+            #add_words_to_be_accepted(words, solver, A)
+            continue
+            
+        # 2) inductiveness
+        # TODO
+        #is_inductive = invariant_conditions.check_invariant_inductiveness(
+        #    invariant = A_aut,
+        #    extended_transducer = restricted_transducer
+        #)
+        #if not is_inductive[0]:
+        #    if invariant_given:
+        #        print("Given invariant is not inductive")
+        #        sys.exit()
+        #    continue
+            
+        # check conditions for relation
+        # 1) strict preorder (irreflexivity & transitivity)
+        is_irreflexive = invariant_conditions.is_irreflexive(T_aut)
+        if not is_irreflexive[0]:
+            word = is_irreflexive[1]
+            # this word should be rejected 
+            if not relation_given:
+                add_word_to_be_rejected(word, solver, T)
+            else:
+                print("Given relation is not irreflexive")
+                sys.exit()
+            continue
+        is_transitive = invariant_conditions.is_transitive(T_aut, A_aut)
+        if not is_transitive[0]:
+            if relation_given:
+                print("Given relation is not transitive")
+            continue  
+        # 1.5) check backwards reachability
+        backwards_reachability_holds = invariant_conditions.check_invariant_backwards_reachability(
+            invariant = A_aut,
+            extended_initial_aut = restricted_initial_conf,
+            relation = T_aut,
+            extended_transducer = restricted_transducer
+        )
+        if not backwards_reachability_holds[0]:
+            if relation_given and invariant_given:
+                print("Backwards reachability does not hold")
+                sys.exit()
+            continue
+        # 2) trace quantifier condition
+        transition_condition_holds = invariant_conditions.check_transition_invariant_condition(
+            extended_transducer = restricted_transducer,
+            accepting_trans = accepting_transitions,
+            invariant = A_aut,
+            relation = T_aut,
+            trace_quantifiers = trace_quantifiers,
+            system_transducer = original_transducer,
+            extended_initial = restricted_initial_conf,
+        )
+        if transition_condition_holds:
+            return A_aut, T_aut
+        elif invariant_given and relation_given:
+            print("Transition condition does not hold")
+            sys.exit()
                 
-            solver_trans.delete()
-        solver_aut.delete()
+    solver.delete()
 
     # no advice bits were found for k_max
     return None, None 

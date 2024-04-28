@@ -4,4 +4,4 @@
 %Initial p
 %Final q
 p 11 q
-q 01 q
+q 00 q

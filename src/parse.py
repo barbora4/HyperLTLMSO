@@ -64,6 +64,18 @@ def parse_command_line_arguments():
         help="maximum number of states of the generated advice bits",
         required=True
     )
+    # optional argument for the transducer
+    input_parser.add_argument(
+        "--relation",
+        help="optional file with transducer for the relation",
+        required = False 
+    )
+    # optional argument for the invariant
+    input_parser.add_argument(
+        "--invariant",
+        help="optional file with invariant",
+        required=False 
+    )
     
     args = vars(input_parser.parse_args())
     return args

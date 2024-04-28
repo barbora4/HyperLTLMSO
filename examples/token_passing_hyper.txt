@@ -1,0 +1,1 @@
+forall t1. exists t2. G(forall i. exists j. (i = succ(j) -> (t_t1[i] -> t_t2[j])))

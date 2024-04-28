@@ -9,6 +9,7 @@ import libmata.nfa.nfa as mata_nfa
 from libmata import parser, alphabets, plotting
 import time 
 import sys 
+import itertools
 
 if __name__ == "__main__":
     start = time.time()
@@ -68,17 +69,39 @@ if __name__ == "__main__":
         rhs = formula.mso_eventuality_constraints_transducer.automaton
     )
 
+    # oprional transducer for the relation
+    relation = None 
+    if args["relation"] != None:
+        relation_symbol_map = list(itertools.chain(*restricted_initial_conf.symbol_map))
+        relation = automata.parse_transducer_from_file(
+            args["relation"],
+            relation_symbol_map
+        )
+        relation.symbol_map = restricted_transducer.symbol_map.copy()
+    # optional invariant
+    invariant = None
+    if args["invariant"] != None:
+        invariant_symbol_map = list(itertools.chain(*restricted_initial_conf.symbol_map))
+        invariant = automata.get_initial_configurations(
+            args["invariant"],
+            invariant_symbol_map
+        )
+        invariant.symbol_map = restricted_initial_conf.symbol_map.copy()
+
+
     # conditions for SAT solver
     # get only used symbols (not the whole alphabet)
     used_alphabet = restricted_transducer.get_used_symbols()
     A, T = sat_solver.find_solution(
-        max_k = int(args["max_states"]), 
+        k_aut = int(args["max_states"]), 
         restricted_initial_conf = restricted_initial_conf,
         restricted_transducer = restricted_transducer,
         original_transducer = system_transducer,
         accepting_transitions = formula.mso_eventuality_constraints_transducer,
         trace_quantifiers = formula.trace_quantifiers_list,
-        contains_eventually_operator = contains_F
+        contains_eventually_operator = contains_F,
+        T_aut = relation,
+        A_aut = invariant 
     ) 
 
     if (A,T) == (None, None):

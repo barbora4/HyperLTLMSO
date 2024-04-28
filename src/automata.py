@@ -142,10 +142,10 @@ def complement(aut: Automaton):
     return result
 
 def minimize(aut: Automaton):
+    # TODO minimize do not work as expected
     mata_nfa.store()["alphabet"] = aut.alphabet
-    result = mata_nfa.minimize(aut.automaton)
-    create_label(result, aut.symbol_map)
-    return result
+    aut.automaton.trim()
+    return aut.automaton 
 
 def determinize(aut: Automaton):
     mata_nfa.store()["alphabet"] = aut.alphabet
@@ -252,7 +252,7 @@ def remove_symbol_on_index(aut: Automaton, index: int, second_to_last=False):
     tape_index = -2 if second_to_last else -1
 
     # create new automaton
-    new_alphabet = create_symbol_map(len(aut.atomic_propositions) * (aut.number_of_tapes-1) + len(aut.symbol_map[-1]) - 1)
+    new_alphabet = create_symbol_map(sum([len(map) for map in aut.symbol_map]) - 1)
     alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
     mata_nfa.store()["alphabet"] = alphabet
     new_aut = mata_nfa.Nfa(aut.automaton.num_of_states())
@@ -516,8 +516,6 @@ def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, tra
     aut = extend_transducer_alphabet_on_configuration_tapes(aut, symbol_map_last_tape)
 
     # intersection
-    aut.automaton = minimize(aut)
-    formula_aut.automaton = minimize(aut)
     mata_nfa.store()["alphabet"] = formula_aut.alphabet
     result = Automaton(
         intersection(aut, formula_aut),
@@ -527,7 +525,7 @@ def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, tra
         aut.atomic_propositions
     )
 
-    return aut 
+    return result 
 
 def add_transducer_next_symbols(automaton: Automaton):
     # add new variables

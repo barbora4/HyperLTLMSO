@@ -1,9 +1,7 @@
 @NFA-explicit
 %States-enum p q r 
 %Initial p
-%Final p r
-p 01010#01010 p
-p 10101#01010 q
-q 01010#01010 q
-q 01010#10101 r
-r 01010#01010 r 
+%Final r
+p 11#01 q
+q 01#11 r
+r 01#01 r
