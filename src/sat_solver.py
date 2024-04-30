@@ -278,13 +278,15 @@ def find_solution(
             if invariant_given:
                 print("Given invariant does not contain initial configurations")
                 sys.exit()
+            if len(model) > 15:
+                # in order to prevent explosion of variables 
+                continue 
             word  = initial_condition_holds[1]
             # this PROJECTED word should be accepted
             total_symbols = sum([len(map) for map in restricted_initial_conf.symbol_map.copy()])
             conf_variables = total_symbols - len(word[0])
             words = get_all_words_from_projected_word(word, conf_variables)
-            # TODO
-            #add_words_to_be_accepted(words, solver, A)
+            add_words_to_be_accepted(words, solver, A)
             continue
             
         # 2) inductiveness
@@ -313,8 +315,9 @@ def find_solution(
             continue
         is_transitive = invariant_conditions.is_transitive(T_aut, A_aut)
         if not is_transitive[0]:
-            if relation_given:
+            if relation_given and invariant_given:
                 print("Given relation is not transitive")
+                sys.exit()
             continue  
         # 1.5) check backwards reachability
         backwards_reachability_holds = invariant_conditions.check_invariant_backwards_reachability(

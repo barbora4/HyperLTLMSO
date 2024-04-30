@@ -397,7 +397,6 @@ class Formula:
             bigger_aut = aut1
 
         elif aut1.number_of_tapes > aut2.number_of_tapes:
-            bigger_aut = aut1
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut2)
             # all symbols on configuration tapes
@@ -408,9 +407,9 @@ class Formula:
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
             new_symbol_map = aut1.symbol_map.copy()
+            bigger_aut = aut1
 
         elif aut2.number_of_tapes > aut1.number_of_tapes:
-            bigger_aut = aut2
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut1)
             # all symbols on configuration tapes
@@ -421,6 +420,7 @@ class Formula:
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape, second_to_last=True)
             new_symbol_map = aut1.symbol_map.copy()
+            bigger_aut = aut2
 
         # automata union
         automaton = automata.Automaton(

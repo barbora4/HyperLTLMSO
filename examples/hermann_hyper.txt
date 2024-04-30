@@ -1,0 +1,7 @@
+forall t1. exists t2. exists i. (
+        (F (t_t1[i] & forall j. ((exists I. (j in I & !(i in I))) -> !t_t1[j])))
+    -> 
+        (F (exists j. (!(exists k. j = succ(k))) & t_t2[j] & 
+            forall k. ((exists I. (k in I & !(j in I))) -> !t_t2[j])
+        ))
+)
