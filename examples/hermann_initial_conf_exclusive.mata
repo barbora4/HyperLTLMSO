@@ -1,6 +1,7 @@
 @NFA-explicit
-%States-enum p
+%States-enum p q
 %Alphabet-auto
 %Initial p
-%Final p
-p 1 p
+%Final q
+p 1 q
+q 1 q

@@ -39,13 +39,6 @@ if __name__ == "__main__":
     # create automaton for initial mso formula
     formula.make_initial_automaton()
 
-    # extended initial configurations with MSO formula
-    restricted_initial_conf = automata.restrict_automaton_with_formula(
-        initial_configurations, 
-        formula.mso_initial_automaton,
-        formula.trace_quantifiers_list
-    )
-
     # parse system transducer from file
     system_transducer = automata.parse_transducer_from_file(
         args["system_transducer"],
@@ -62,6 +55,14 @@ if __name__ == "__main__":
        formula.trace_quantifiers_list
     )
 
+    # extended initial configurations with MSO formula
+    restricted_initial_conf = automata.restrict_automaton_with_formula(
+        initial_configurations, 
+        formula.mso_initial_automaton,
+        formula.trace_quantifiers_list,
+        restricted_transducer.symbol_map.copy()[-1]
+    )   
+
     # transducer for eventuality constraints
     formula.make_eventuality_constraints_transducer()
     contains_F = not mata_nfa.equivalence_check(
@@ -69,25 +70,28 @@ if __name__ == "__main__":
         rhs = formula.mso_eventuality_constraints_transducer.automaton
     )
 
-    # oprional transducer for the relation
+    # optional transducer for the relation
     relation = None 
     if args["relation"] != None:
-        relation_symbol_map = list(itertools.chain(*restricted_initial_conf.symbol_map))
+        tmp_map = formula.mso_eventuality_constraints_transducer.symbol_map.copy()
+        tmp_map = tmp_map[:int(len(tmp_map)/2)]
+        tmp_map[-1] = sorted(tmp_map[-1])
         relation = automata.parse_transducer_from_file(
             args["relation"],
-            relation_symbol_map
+            tmp_map,
+            with_configuration=True
         )
-        relation.symbol_map = restricted_transducer.symbol_map.copy()
+        relation.symbol_map = tmp_map.copy() + tmp_map.copy()
     # optional invariant
     invariant = None
     if args["invariant"] != None:
-        invariant_symbol_map = list(itertools.chain(*restricted_initial_conf.symbol_map))
-        invariant = automata.get_initial_configurations(
+        invariant_symbol_map = restricted_initial_conf.symbol_map.copy()
+        invariant_symbol_map[-1] = sorted(invariant_symbol_map[-1])
+        invariant = automata.get_automaton_with_configuration_tape(
             args["invariant"],
             invariant_symbol_map
         )
-        invariant.symbol_map = restricted_initial_conf.symbol_map.copy()
-
+        invariant.symbol_map = invariant_symbol_map.copy()
 
     # conditions for SAT solver
     # get only used symbols (not the whole alphabet)

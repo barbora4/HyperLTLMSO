@@ -123,6 +123,21 @@ def get_initial_configurations(input_file_name, symbol_map):
     # they are mapped to numbers, symbol map is in alpha.get_symbol_map()
     return Automaton(automaton, alphabet, symbol_map, 1, symbol_map)
 
+def get_automaton_with_configuration_tape(input_file_name, symbol_map):
+    # get FA from .mata
+    total_symbols = sum([len(map) for map in symbol_map])
+    alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(create_symbol_map(total_symbols))
+    mata_nfa.store()["alphabet"] = alphabet
+    automaton = parser.from_mata(
+        input_file_name, 
+        alphabet
+    )
+    automaton.label = "Symbols: " + str(symbol_map)
+
+    # symbols are in automaton.get_symbols()
+    # they are mapped to numbers, symbol map is in alpha.get_symbol_map()
+    return Automaton(automaton, alphabet, symbol_map, 1, symbol_map[0])
+
 def union(aut1: Automaton, aut2: Automaton):
     mata_nfa.store()["alphabet"] = aut1.alphabet
     aut = mata_nfa.union(aut1.automaton, aut2.automaton)
@@ -362,7 +377,12 @@ def create_multitape_automaton(aut: Automaton, number_of_tapes: int):
 
     return current_automaton 
 
-def restrict_automaton_with_formula(aut: Automaton, formula_aut: Automaton, trace_quantifiers: list):
+def restrict_automaton_with_formula(
+        aut: Automaton, 
+        formula_aut: Automaton, 
+        trace_quantifiers: list,
+        configuration_tape: list,
+    ):
     # 1) create multitape automaton for initial configurations
     aut = create_multitape_automaton(aut, len(trace_quantifiers)+1)
 
@@ -382,7 +402,13 @@ def restrict_automaton_with_formula(aut: Automaton, formula_aut: Automaton, trac
     )
     result.automaton = minimize(result)
 
-    return result 
+    initial_with_conf = extend_alphabet_on_last_tape(
+        aut = result,
+        new_symbol_map = configuration_tape 
+    )
+    initial_with_conf.automaton = minimize(initial_with_conf)
+
+    return initial_with_conf 
 
 def parse_transducer_from_file(filename, symbol_map, with_configuration=False) -> Transducer:
     with open(filename) as f:
@@ -394,8 +420,8 @@ def parse_transducer_from_file(filename, symbol_map, with_configuration=False) -
         new_alphabet = create_symbol_map(len(symbol_map)*2)
     else:
         number_of_tapes = len(symbol_map)
-        new_symbol_map = symbol_map.copy()
-        new_alphabet = create_symbol_map(sum(len(map) for map in symbol_map))
+        new_symbol_map = symbol_map.copy() + symbol_map.copy()
+        new_alphabet = create_symbol_map(sum(len(map) for map in new_symbol_map))
 
     # create new alphabet
     alphabet = alphabets.OnTheFlyAlphabet.from_symbol_map(new_alphabet)
@@ -524,6 +550,7 @@ def restrict_transducer_with_formula(aut: Automaton, formula_aut: Automaton, tra
         formula_aut.number_of_tapes,
         aut.atomic_propositions
     )
+    result.automaton = minimize(result)
 
     return result 
 

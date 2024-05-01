@@ -1,0 +1,9 @@
+exists t1. F(
+    exists i. (
+        t_t1[i] & forall j. (
+            (exists I. (i in I & !(j in I)))
+            ->
+            !(t_t1[j])
+        )
+    )
+)

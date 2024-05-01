@@ -59,7 +59,7 @@ def check_invariant_backwards_reachability(
     extended_initial_aut: automata.Automaton,
     relation: automata.Automaton,
     extended_transducer: automata.Automaton,
-): 
+):  
     # cylindrification of extended initial configurations
     extended_initial_cylindrified = extend_automaton_to_transducer(
         aut = extended_initial_aut,
@@ -126,7 +126,7 @@ def check_invariant_backwards_reachability(
         counterexample = is_subseteq[1]
         labels = counterexample.word 
         word = invariant.get_word_from_labels(labels)
-        #print(word)
+        return (is_subseteq[0], word)
 
     return is_subseteq
 

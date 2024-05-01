@@ -5,6 +5,7 @@ import automata
 import mso
 import libmata.nfa.nfa as mata_nfa
 from libmata import parser, alphabets, plotting
+import sys 
 
 class NodeType(Enum):
     PROCESS_QUANTIFIER = 1
@@ -330,7 +331,7 @@ class Formula:
     def convert_and(self, aut1: automata.Automaton, aut2: automata.Automaton):
         if aut1.number_of_tapes == aut2.number_of_tapes:
             # extend alphabet of last tapes (configuration and process variables)
-            symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+            symbol_map_last_tape = sorted(list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1]))))
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
             if aut1.number_of_tapes - len(self.trace_quantifiers_list) == 2:
@@ -346,7 +347,7 @@ class Formula:
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut2)
             # all symbols on configuration tapes
-            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            symbol_map_last_tape = sorted(self.get_new_transducer_symbol_map(aut1, aut2))
             # extend alphabets on both tapes
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
@@ -359,7 +360,7 @@ class Formula:
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut1)
             # all symbols on configuration tapes
-            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            symbol_map_last_tape = sorted(self.get_new_transducer_symbol_map(aut1, aut2))
             # extend alphabets on both tapes
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape.copy())
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape.copy(), second_to_last=True)
@@ -385,7 +386,7 @@ class Formula:
     def convert_or(self, aut1: automata.Automaton, aut2: automata.Automaton):
         if aut1.number_of_tapes == aut2.number_of_tapes:
             # extend alphabet of last tapes (configuration and process variables)
-            symbol_map_last_tape = list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1])))
+            symbol_map_last_tape = sorted(list(set(aut1.symbol_map[-1]).union(set(aut2.symbol_map[-1]))))
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut2 = automata.extend_alphabet_on_last_tape(aut2, symbol_map_last_tape)
             if aut1.number_of_tapes - len(self.trace_quantifiers_list) == 2:
@@ -400,7 +401,7 @@ class Formula:
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut2)
             # all symbols on configuration tapes
-            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            symbol_map_last_tape = sorted(self.get_new_transducer_symbol_map(aut1, aut2))
             # extend alphabets on both tapes
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
@@ -413,7 +414,7 @@ class Formula:
             # create new configuration tape for a smaller automaton
             automata.create_new_tape(aut1)
             # all symbols on configuration tapes
-            symbol_map_last_tape = self.get_new_transducer_symbol_map(aut1, aut2)
+            symbol_map_last_tape = sorted(self.get_new_transducer_symbol_map(aut1, aut2))
             # extend alphabets on both tapes
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape)
             aut1 = automata.extend_alphabet_on_last_tape(aut1, symbol_map_last_tape, second_to_last=True)
