@@ -1,7 +1,4 @@
 @NFA-explicit
-%States-enum p q r 
+%States-enum p
 %Initial p
-%Final r
-p 11#01 q
-q 01#11 r
-r 01#01 r
+%Final

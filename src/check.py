@@ -65,11 +65,6 @@ if __name__ == "__main__":
 
     # transducer for eventuality constraints
     formula.make_eventuality_constraints_transducer()
-    contains_F = not mata_nfa.equivalence_check(
-        lhs = restricted_transducer.automaton,
-        rhs = formula.mso_eventuality_constraints_transducer.automaton
-    )
-
     # optional transducer for the relation
     relation = None 
     if args["relation"] != None:
@@ -103,9 +98,9 @@ if __name__ == "__main__":
         original_transducer = system_transducer,
         accepting_transitions = formula.mso_eventuality_constraints_transducer,
         trace_quantifiers = formula.trace_quantifiers_list,
-        contains_eventually_operator = contains_F,
         T_aut = relation,
-        A_aut = invariant 
+        A_aut = invariant,
+        relation_bound = args["relation_bound"] 
     ) 
 
     if (A,T) == (None, None):

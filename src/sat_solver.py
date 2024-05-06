@@ -61,7 +61,8 @@ def generate_condition_for_determinism(
 
 def generate_condition_for_automaton(
         inv: Invariant,
-        solver: Solver
+        solver: Solver,
+        transducer = False 
     ):
     global GLOBAL_VARIABLE_COUNT
 
@@ -71,7 +72,12 @@ def generate_condition_for_automaton(
     GLOBAL_VARIABLE_COUNT += len(inv.trans_variables)
 
     # simple condition for at least one transition
-    solver.add_clause(inv.trans_variables)
+    if not transducer: 
+        solver.add_clause(inv.trans_variables)
+    else:
+        all_options = inv.trans_variables.copy()
+        all_options.append(-inv.trans_variables.copy()[0])
+        solver.add_clause(all_options)
 
 def generate_condition_for_completeness(
         inv: Invariant,
@@ -86,10 +92,10 @@ def generate_condition_for_completeness(
             # generate all clauses
             solver.add_clause(all_variables)
 
-
 def generate_condition_for_accepting_states(
         inv: Invariant,
-        solver: Solver
+        solver: Solver,
+        transducer = False 
     ):
     global GLOBAL_VARIABLE_COUNT
 
@@ -97,7 +103,12 @@ def generate_condition_for_accepting_states(
     GLOBAL_VARIABLE_COUNT += len(inv.state_variables)
 
     # at least one accepting state
-    solver.add_clause(inv.state_variables)
+    if not transducer:
+        solver.add_clause(inv.state_variables)
+    else:
+        all_options = inv.state_variables.copy()
+        all_options.append(-inv.state_variables[0])
+        solver.add_clause(all_options)
 
 def find_transitions(
         src_index: int, 
@@ -119,7 +130,8 @@ def get_src_from_variable(
         variable: int,
     ) -> int :
         # one src is for num_symbols * num_states transitions
-        return int((variable-1) / (len(invariant.used_alphabet) * invariant.num_states))
+        # TODO
+        return int((variable-invariant.trans_variables[0]) / (len(invariant.used_alphabet) * invariant.num_states))
 
 def add_words_to_be_accepted(
         words: list,
@@ -213,9 +225,9 @@ def find_solution(
         original_transducer: automata.Automaton,
         accepting_transitions: automata.Automaton,
         trace_quantifiers: list,
-        contains_eventually_operator: bool ,
         T_aut,
-        A_aut  
+        A_aut,
+        relation_bound  
     ):
     global GLOBAL_VARIABLE_COUNT
     relation_given = (T_aut != None) 
@@ -226,7 +238,7 @@ def find_solution(
     solver = Solver(name='g3')
     # advice bits bound on states
     A = Invariant(k_aut)
-    T = Invariant(k_aut)
+    T = Invariant(k_aut if relation_bound == None else int(relation_bound))
 
     # only symbols used on first tape of the transducer are in the alphabet
     A.used_alphabet = restricted_transducer.get_all_symbols_from_first_tape()
@@ -244,16 +256,20 @@ def find_solution(
     if not relation_given:
         # generate conditions for relation
         # 1) automaton
-        generate_condition_for_automaton(T, solver)
+        generate_condition_for_automaton(T, solver, True)
         # 3) at least one accepting state
-        generate_condition_for_accepting_states(T, solver)
+        generate_condition_for_accepting_states(T, solver, True)
         # 4) symmetry breaking
         # TODO
 
     # solve
     solver.solve()
 
+    iterations = 0
     for model in solver.enum_models():
+        iterations += 1
+        print("Iteration", iterations, end="\r", flush=True)
+
         # convert to automaton instance
         if not invariant_given:
             A_aut = convert_model_to_automaton(
@@ -370,13 +386,15 @@ def convert_model_to_automaton(
     # accepting states
     for state in inv.state_variables:
         if state in model:
-            new_aut.make_final_state(state-1-len(inv.trans_variables))
+            # TODO correct 
+            new_aut.make_final_state(state-len(inv.trans_variables)-inv.trans_variables[0])
 
     # transitions
     for src_index in range(inv.num_states):
         for symbol_index in range(len(inv.used_alphabet)):
             for dst_index in range(inv.num_states):
-                var_index = src_index * len(inv.used_alphabet) * inv.num_states + symbol_index * inv.num_states + dst_index + 1
+                # TODO var_index for transducer!!!
+                var_index = src_index * len(inv.used_alphabet) * inv.num_states + symbol_index * inv.num_states + dst_index + inv.trans_variables[0]
                 symbol = inv.used_alphabet[symbol_index]
                 if var_index in model:
                     new_aut.add_transition(src_index, symbol, dst_index)

@@ -76,6 +76,12 @@ def parse_command_line_arguments():
         help="optional file with invariant",
         required=False 
     )
+    # optional argument for the transducer bound
+    input_parser.add_argument(
+        "--relation_bound",
+        help="optional bound for the transducer",
+        required=False
+    )
     
     args = vars(input_parser.parse_args())
     return args
