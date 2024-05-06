@@ -73,9 +73,13 @@ class Node:
         return self.children == 0
     
     def is_existential_quantifier(self):
+        if type(self.data) != list:
+            return False 
         return self.data[0] in [TreeOperators.EXISTS.value, TreeOperators.EXISTS]
     
     def is_universal_quantifier(self):
+        if type(self.data) != list:
+            return False
         return self.data[0] in [TreeOperators.FORALL.value, TreeOperators.FORALL]   
 
 def print_tree(root: Node, tabs = 0):
