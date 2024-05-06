@@ -592,8 +592,6 @@ class BnfFormula:
             else:
                 new_variable = self.create_new_variable("i", is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
                 free_variable = "i"
-            #new_variable = self.create_new_variable("z", is_eventually=(node.data == TreeOperators.EVENTUALLY.value))
-            #free_variable = "z"
 
             # create local constraints
             if node.data in [TreeOperators.ALWAYS.value, TreeOperators.EVENTUALLY.value]: 
@@ -609,15 +607,16 @@ class BnfFormula:
                 self.local_constraints.append(root)
             
             elif node.data == TreeOperators.WEAK_UNTIL.value:
-                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.WEAK_UNTIL, free_variable, TreeOperators.DOT], 1)
+                root = Node(NodeType.PROCESS_QUANTIFIER, [TreeOperators.FORALL, free_variable, TreeOperators.DOT], 1)
                 root.create_left_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.IFF, 2)
                 root.left.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
-                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.DOT, 2)
+                root.left.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.OR, 2)
                 root.left.right.left = node.right.copy()
                 root.left.right.create_right_child(NodeType.BOOLEAN_OPERATOR, TreeOperators.AND, 2)
                 root.left.right.right.left = node.left.copy()
                 root.left.right.right.create_right_child(NodeType.LTL_OPERATOR, TreeOperators.NEXT, 1)
                 root.left.right.right.right.create_left_child(NodeType.CONFIGURATION_VARIABLE, new_variable, 0)
+                self.local_constraints.append(root)
 
             # eventuality variables
             if node.data ==  TreeOperators.EVENTUALLY.value:

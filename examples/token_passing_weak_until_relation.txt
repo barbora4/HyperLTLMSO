@@ -1,0 +1,9 @@
+@NFA-explicit
+%States-enum p q r 
+%Initial p
+%Final r
+p 01#01 p
+p 11#01 q
+q 01#01 q
+q 01#11 r
+r 01#01 r

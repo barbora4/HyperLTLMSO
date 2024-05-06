@@ -1,1 +1,4 @@
-exists t1. (exists i. !(a_t1[i])) -> F(forall j. !(a_t1[j]))
+exists t1. 
+    (exists i. (!(exists j. i = succ(j)) & !(a_t1[i]) & forall j. ((exists I. (i in I & !(j in I))) -> a_t1[j]))) 
+    & 
+    F(forall j. !(a_t1[j]))

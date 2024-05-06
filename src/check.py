@@ -61,7 +61,7 @@ if __name__ == "__main__":
         formula.mso_initial_automaton,
         formula.trace_quantifiers_list,
         restricted_transducer.symbol_map.copy()[-1]
-    )   
+    )
 
     # transducer for eventuality constraints
     formula.make_eventuality_constraints_transducer()

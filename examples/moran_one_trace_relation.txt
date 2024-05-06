@@ -1,0 +1,4 @@
+@NFA-explicit
+%States-enum p
+%Initial p
+%Final

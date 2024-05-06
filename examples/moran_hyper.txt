@@ -1,0 +1,4 @@
+forall t1. exists t2. 
+    (exists i. !(a_t1[i]))
+    ->
+    ((exists i. !(a_t2[i])) & F(forall j. !(a_t2[j])))
