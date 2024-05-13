@@ -1,2 +1,0 @@
-forall t1.
-(exists i. ((!(exists j. i = succ(j)) & t_t1[i]))) W (exists i. exists k. ((!(exists j. i = succ(j)) & (k = succ(i)) & t_t1[k])))

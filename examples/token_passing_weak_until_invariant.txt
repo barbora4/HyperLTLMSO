@@ -1,8 +1,0 @@
-@NFA-explicit
-%States-enum p q
-%Alphabet-auto
-%Initial p
-%Final q
-p 01 p
-p 11 q
-q 01 q

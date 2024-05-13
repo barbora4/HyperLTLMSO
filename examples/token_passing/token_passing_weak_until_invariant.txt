@@ -1,0 +1,14 @@
+@NFA-explicit
+%States-enum p q r s t u v
+%Alphabet-auto
+%Initial p s
+%Final q v
+p 111 q
+p 001 r
+r 111 q
+q 001 q
+s 000 t
+t 000 u
+u 000 u
+u 110 v
+v 000 v

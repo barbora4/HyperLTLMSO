@@ -1,5 +1,4 @@
-libmata
-pysat
-graphviz
-lark
-python-sat
+graphviz==0.20.1
+lark_parser==0.12.0
+libmata==1.2.1
+python_sat==1.8.dev7
